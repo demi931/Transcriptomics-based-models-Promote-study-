@@ -1596,23 +1596,9 @@ ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
 
 
 
-
-summary_cont <- plot_df_long %>%
-  filter(variable %in% continuous_vars) %>%
-  mutate(value = as.numeric(value)) %>%
-  group_by(variable, group_label) %>%
-  summarise(
-    Mean   = mean(value, na.rm = TRUE),
-    Median = median(value, na.rm = TRUE),
-    Q1     = quantile(value, 0.25, na.rm = TRUE),
-    Q3     = quantile(value, 0.75, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-summary_cont
-
 ```
               
+
 
 
 
