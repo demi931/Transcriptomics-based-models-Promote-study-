@@ -12,7 +12,7 @@ The parameters in this section will need to be set correctly for this script to 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_knit$set(root.dir = 'C:/Users/rianne.fijten/Documents/GitHub/PROMOTE/') ## fixed directory assigning
+knitr::opts_knit$set(root.dir = 'C:/Users/Documents/GitHub/PROMOTE/') ## fixed directory assigning
 
 library(ggforce)
 library(ggplot2)
@@ -1615,3 +1615,4 @@ summary_cont
 
 ```
               
+
