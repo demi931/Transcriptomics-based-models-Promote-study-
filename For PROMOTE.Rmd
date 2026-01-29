@@ -1368,7 +1368,7 @@ ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
 
 ### 5clinics
 # dotplot
-# 读取 RDS 文件
+
 RFE_RR <- readRDS("5clinicRFE_RR.rds")
 
 library(ggplot2)
@@ -1431,7 +1431,7 @@ p_table
 
 
 #### 20251212wholeRR+5clinic.csv
-# 读取 RDS 文件
+
 RFE_RR <- readRDS("wholedegsRR+5clinicRFE_RR.rds")
 
 
@@ -1495,7 +1495,7 @@ p_table <- bind_rows(p_cont, p_cat) %>%
   ) %>%
   arrange(Variable)
 
-# 查看表格
+
 p_table
 
 
@@ -1578,7 +1578,7 @@ p_table <- bind_rows(p_cont, p_cat) %>%
   ) %>%
   arrange(Variable)
 
-# 查看表格
+
 p_table
 
 
@@ -1613,6 +1613,7 @@ summary_cont
 
 ```
               
+
 
 
 
