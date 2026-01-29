@@ -1,0 +1,1617 @@
+---
+title: "Open access For PROMOTE Study"
+author: "Xiaoman"
+date: "2024-01-21"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+# Input information
+The parameters in this section will need to be set correctly for this script to work. *You will need to change it to fit your setup*.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = 'C:/Users/rianne.fijten/Documents/GitHub/PROMOTE/') ## fixed directory assigning
+
+library(ggforce)
+library(ggplot2)
+# BiocManager::install("DESeq2")
+library(DESeq2)
+library(dplyr)
+# BiocManager::install("ComplexHeatmap")
+library(ComplexHeatmap)
+library(tidyverse)
+library(caret)
+library(glmnet)
+
+```
+
+
+# Preparation
+These tasks need to be done before the data analysis can begin.
+```{r}
+data <- read.csv("CODE/PROMOTE2samplechangeRR60samples.csv", row.names=1)
+data2 <- data[rowSums(data) != 0, ]
+data1 <- t(data2)
+```
+
+# Principal Component Analysis
+Here we need to find if patients collected from different center have difference.
+```{r}
+#Create a data frame with the results of Principal Component Analysis
+pcdat <- prcomp(data1, scale=TRUE)
+
+summary(pcdat)
+
+plotdat <- as.data.frame(pcdat$x[, 1:2])
+
+plotdat$genotype <- c(
+  "maastricht", "nijmegen", "groningen", "NKI-amsterdam", "UK", "Eindhoven", "Bergen", "UK",
+  "Eindhoven", "maastricht", "Rotterdam", "utrecht", "Bergen", "arnem", "amsterdam", "NKI-amsterdam",
+  "Rotterdam", "nijmegen", "maastricht", "maastricht", "utrecht", "OSLO", "Eindhoven", "CZ-BRN",
+  "maastricht", "nijmegen", "nijmegen", "nijmegen", "nijmegen", "Eindhoven", "Eindhoven", "groningen",
+  "maastricht", "utrecht", "OSLO", "OSLO", "OSLO", "OSLO", "nijmegen", "Eindhoven", "groningen",
+  "Rotterdam", "nijmegen", "OSLO", "NKI-amsterdam", "NKI-amsterdam", rep("nijmegen", 14)
+)
+
+plotdat$genotype <- paste0(
+  "Location",
+  match(plotdat$genotype, unique(plotdat$genotype))
+)
+
+#Create a scatter plot with ellipses.
+
+ggplot(plotdat, aes(x=PC1, y=PC2, colour=genotype)) +
+  geom_point(size=3) +  
+  stat_ellipse(level=0.9) 
+```
+  
+  
+# DESeq2 analysis
+Let's normalize raw data and find difference genes by DESeq2.
+```{r}
+#Read and preprocess data and Filter out rows where the sum of values is not equal to zero
+data <- read.csv("CODE/PROMOTE2.csv", row.names=1)
+data2 <- data[rowSums(data) != 0,]
+
+
+
+#Read the CSV file "PROMOTE2.1.csv" into a data frame, treating strings as factors
+
+data1 <- read.csv("supplement2.23/CBR/PROMOTE2.1.csv", stringsAsFactors = TRUE)
+
+#Check if column names of data2 match with the 'id' column in data1
+
+colnames(data2) == data1$id
+
+
+#Create a DESeqDataSet object from the count data and colData, designating the formula ~CBR
+ 
+dds <- DESeqDataSetFromMatrix(countData = round(data2), colData = data1, design = ~CBR)
+
+#Run DESeq on the DESeqDataSet
+ 
+dds <- DESeq(dds)
+
+#Extract results from DESeq analysis
+ 
+res <- results(dds)
+
+#Convert the DESeq results object to a data frame
+ 
+res_1 <- data.frame(res)
+
+#Display the first few rows of the results data frame
+ 
+head(res_1)
+
+#Mutate a new column 'group' based on log2FoldChange and adjusted p-value
+
+res_1 %>%
+  mutate(group = case_when(
+    log2FoldChange >= 2 & padj <= 0.05 ~ "UP",
+    log2FoldChange <= -2 & padj <= 0.05 ~ "DOWN",
+    TRUE ~ "NOT_CHANGE"
+  )) -> res_2
+
+#Display the table of counts for each group in the 'group' column
+
+table(res_2$group)
+
+#Write the mutated data frame to a CSV file
+
+write.csv(res_2, file = "diff_expr_result.csv", quote = FALSE)
+
+
+```
+
+
+# Visualize difference genes by Heatmap for CBR
+We want to find if there is difference from CBR no response and response patients and visualize
+
+```{r}
+
+#mean value for each gene, then value of each sample divide mean value get "foldchangeJ" file
+
+#Read data from the "foldchangeJ.csv" file, using the first column as row names
+
+data <- read.csv("CODE/CBR/foldchangeJ.csv", row.names=1)
+
+#Apply log2 transformation to the data and store it in log2J
+
+log2(data + 1) -> log2J   
+
+#Write the log-transformed data to a CSV file
+
+write.csv(log2J, file="log2J.csv", row.names=TRUE)
+
+#Read the log-transformed data from the "log2J.csv" file, using the first column as row names
+
+data <- read.csv("log2J.csv", row.names=1)
+
+#Convert the data to a matrix
+
+data1 <- data.matrix(data)
+
+#Create a heatmap using pheatmap with row scaling
+
+pheatmap(data1, scale = "row")
+
+#Define Groups for annotation
+
+Groups <- c(rep("cbrno", 25), rep("cbryes", 36))
+
+annotation_c <- data.frame(Groups)
+
+#Set row names for the annotation data frame
+
+row.names(annotation_c) <- colnames(data1)
+
+#Create a heatmap with row scaling, without row names, and with color grouping
+
+B <- pheatmap(data1, scale = "row", show_rownames = FALSE, cluster_col = FALSE,
+              col = colorRampPalette(c("navy", "white", "firebrick3"))(100),
+              annotation_col = annotation_c)
+
+B
+```
+
+              
+# Visualize difference genes by Heatmap for RR
+We want to find if there is difference from RR no response and response patients and visualize
+```{r}
+#Read data from the "RRfoldchangeJ.csv" file, using the first column as row names
+data <- read.csv("CODE/RR/RRfoldchangeJ.csv", row.names=1)
+
+#Apply log2 transformation to the data and store it in log2J
+
+log2(data + 1) -> log2J
+
+#Write the log-transformed data to a CSV file
+
+write.csv(log2J, file="log2JRR.csv", row.names=TRUE)
+
+#Read the log-transformed data from the "log2JRR.csv" file, using the first column as row names
+
+data <- read.csv("log2JRR.csv", row.names=1)
+
+#Convert the data to a matrix
+
+data1 <- data.matrix(data)
+
+#Create a heatmap using pheatmap with row scaling
+
+pheatmap(data1, scale="row")
+
+#Define Groups for annotation
+
+Groups <- c(rep("rrno", 30), rep("rryes", 31))
+annotation_c <- data.frame(Groups)
+
+#Set row names for the annotation data frame
+
+row.names(annotation_c) <- colnames(data1)
+
+#Create a heatmap with row scaling, without row names, and with color grouping
+
+B <- pheatmap(data1, scale="row", show_rownames=FALSE, cluster_col=FALSE,
+              col=colorRampPalette(c("navy", "white", "firebrick3"))(100),
+              annotation_col=annotation_c)
+B
+```
+
+# PCA plot for CBR
+
+Here we want to visualize difference from CBR no response and response patients
+
+```{r}
+
+#Read data from the "20260128stagepcacbr.csv" file, using the first column as row names
+
+data <- read.csv("CODE/CBR/20260128stagepcacbr.csv", row.names=1)
+stage_vec <- as.numeric(data["stage", ])
+
+#Filter out rows where the sum of values is not equal to zero
+
+data2 <- data[rowSums(data) != 0,]
+
+#Transpose the filtered data
+
+data1 <- t(data2)
+
+
+#Perform Principal Component Analysis (PCA) on the transposed and scaled data
+
+pcdat <- prcomp(data1, scale=TRUE)
+
+#Display a summary of the PCA results
+
+summary(pcdat)
+
+#Create a data frame from the first two principal components
+
+plotdat <- as.data.frame(pcdat$x[,1:2])
+
+#Add a 'genotype' column to the data frame
+
+plotdat$genotype <- c(rep("No Clinical Benefit", 25), rep("Clinical Benefit", 32))
+stage_group <- factor(
+  stage_vec,
+  levels = c(0, 1, 3, 4),
+  labels = c("Recurrence", "Stage1", "Stage3", "Stage4")
+)
+
+#Create a scatter plot using ggplot with PC1 and PC2, colored by 'genotype'
+
+ggplot(plotdat, aes(
+  x = PC1,
+  y = PC2,
+  colour = genotype,
+  shape = stage_group
+)) +
+  geom_point(size = 3) +
+  theme_classic()
+```
+
+# PCA plot for RR
+
+Here we want to visualize difference from RR no response and response patients
+
+```{r}
+#Read data from the "20260128stagepca.csv" file, using the first column as row names
+
+data <- read.csv("20260128stagepca.csv", row.names=1)
+stage_vec <- as.numeric(data["stage", ])
+
+#Filter out rows where the sum of values is not equal to zero
+
+data2 <- data[rowSums(data) != 0,]
+
+#Transpose the filtered data
+
+data1 <- t(data2)
+
+#Perform Principal Component Analysis (PCA) on the transposed and scaled data
+
+pcdat <- prcomp(data1, scale=TRUE)
+
+#Display a summary of the PCA results
+
+summary(pcdat)
+
+#Create a data frame from the first two principal components
+
+plotdat <- as.data.frame(pcdat$x[,1:2])
+
+#Add a 'genotype' column to the data frame
+
+plotdat$genotype <- c(rep("No response", 30), rep("Response", 27))
+
+stage_group <- factor(
+  stage_vec,
+  levels = c(0, 1, 3, 4),
+  labels = c("Recurrence", "Stage1", "Stage3", "Stage4")
+)
+
+#Create a scatter plot using ggplot with PC1 and PC2, colored by 'genotype'
+
+ggplot(plotdat, aes(
+  x = PC1,
+  y = PC2,
+  colour = genotype,
+  shape = stage_group
+)) +
+  geom_point(size = 3) +
+  theme_classic()
+```
+
+
+# RFE for CBR
+LR-RFEs were used to analyses data of gene and gene with clinical characters, to see how many variables we can select with optimal choose for CBR
+```{r}
+#Source custom functions from "importAllHandmadeFunctions.R"
+
+source("CODE/importAllHandmadeFunctions.R")
+#Define script locations
+scriptsLocations <- paste(getwd(), "/scripts/", sep="")
+#Import custom functions
+importAllHandmadeFunctions(scriptsLocations)
+
+```{r}
+#Set working directory
+
+setwd(dir="D:/mine/2022NL/RR/deskCBR")
+
+#Load readr library
+
+library(readr)
+
+#load function from machinelearning, dataExploration & modelPreprocessing created by Rianne
+performLogitRfe = function(dataset, outcome, sizesPerIteration){
+  library(caret)
+  library(glmnet)
+  if (missing(sizesPerIteration)){
+    sizesPerIteration = c(2:dim(dataset)[2])
+  }
+  
+  control <- rfeControl(functions = caretFuncs, method = "boot", verbose=T, returnResamp = "all")
+  rfeProfile <- rfe(dataset, factor(outcome), rfeControl = control, method="glmnet", metric = "Accuracy", sizes = sizesPerIteration)
+  print(plot(rfeProfile, type = c("g", "o")))
+  return(rfeProfile)  
+}
+
+calculateVariableImportance = function(rfeProfile, meanOrMedian = "median"){
+  variableInformation = rfeProfile$variables
+  variableImportance = createEmptyDataFrame(length(unique(variableInformation$var)), 4)
+  colnames(variableImportance) = c("name", "mean", "median", "std")
+  variableImportance[,1] = unique(variableInformation$var)
+  for (i in variableImportance$name){
+    variableImportance[which(variableImportance$name == i),2] = mean(variableInformation$Overall[variableInformation$var == i])
+    variableImportance[which(variableImportance$name == i),3] = median(variableInformation$Overall[variableInformation$var == i])
+    variableImportance[which(variableImportance$name == i),4] = sd(variableInformation$Overall[variableInformation$var == i])
+  }
+  if (meanOrMedian == "mean"){
+    p = createBarPlot(variableImportance$mean, variableImportance$name, "Mean variable importance")
+  } else if (meanOrMedian == "median"){
+    p = createBarPlot(variableImportance$median, variableImportance$name, "Median variable importance")
+  }
+  
+  print(p)
+  return(variableImportance)
+  
+}
+
+performLogisticRegression = function(dataset, outcomeToTest, showSummary){
+  logitModel = glm(factor(outcomeToTest)~., family=binomial(link='logit'), data = dataset)
+  if (!missing(showSummary)){
+    print(summary(logitModel))
+  }
+  return(logitModel)
+}
+
+createEmptyDataFrame = function(nrows, ncols, rowNames, columnNames){
+  dataset = data.frame(matrix(ncol = ncols, nrow = nrows))
+  if (!missing(columnNames)){
+    colnames(dataset) = columnNames
+  }
+  if (!missing(rowNames)){
+    row.names(dataset) = rowNames
+  }
+  return(dataset)
+}
+
+reduceVariablesLogit = function(trainingSet, outcomeData, variableImportance, meanOrMedian = "median"){
+  library(pROC)
+  
+  if (meanOrMedian == "median"){
+    variableImportance = variableImportance[order(variableImportance$median),]
+  } else if (meanOrMedian == "mean"){
+    variableImportance = variableImportance[order(variableImportance$mean),]
+  }
+  sortedDataset = trainingSet[,c(variableImportance$name)]
+  allLogitModels = list()
+  modelAuc = createEmptyDataFrame(dim(variableImportance)[1]-2, 5)
+  colnames(modelAuc) = c("AUC", "sensitivity", "specificity", "overallAccuracy", "numberOfVariables")
+  for (i in 1:(dim(variableImportance)[1]-2)){
+    print(i)
+    reducedDataset = sortedDataset[,(i+1):dim(sortedDataset)[2]]
+    allLogitModels[[i]] = performLogisticRegression(reducedDataset, outcomeData)
+    modelAuc[i,1] = auc(roc(outcomeData, predict(allLogitModels[[i]], type="response")))
+    modelAuc[i,2] = calculateAccuracy(allLogitModels[[i]], outcomeData)[[1]]$sensitivity
+    modelAuc[i,3] = calculateAccuracy(allLogitModels[[i]], outcomeData)[[1]]$specificity
+    modelAuc[i,4] = calculateAccuracy(allLogitModels[[i]], outcomeData)[[1]]$overallAccuracy
+    modelAuc[i,5] = dim(reducedDataset)[2]
+  }
+  return(list(allLogitModels, modelAuc))
+}
+
+calculateAccuracy = function(predictionModel, testSetOutcomes, testSet){
+  # does not calculate AUC, but accuracy (TPR, TNR, FNR)
+  confMatrix = createConfusionMatrix(predictionModel, testSetOutcomes, testSet)
+  sensitivity = confMatrix[1,1] / (confMatrix[1,1] + confMatrix[2,1])
+  specificity = confMatrix[2,2] / (confMatrix[1,2] + confMatrix[2,2])
+  overallAccuracy = sum(confMatrix[1,1] + confMatrix[2,2]) / sum(confMatrix)
+  return(list(
+    data.frame("sensitivity" = sensitivity, "specificity" = specificity, "overallAccuracy" = overallAccuracy),
+    confMatrix))
+}
+
+createConfusionMatrix = function(predictionModel, actualOutcomes, testSet){
+  if (missing(testSet)){
+    # predict onto trainingset
+    modelPrediction = predict(predictionModel)
+  } else {
+    modelPrediction = predict(predictionModel, newdata = testSet)
+  }
+  if (predictionModel$method == "glmnet"){
+    confMatrix = table(modelPrediction, actualOutcomes)
+  } else if (predictionModel$method == "glm.fit"){
+    confMatrix = table(ifelse(modelPrediction > 0.5, 2, 1), actualOutcomes)
+  }
+  if (dim(confMatrix)[1] != 2){
+    confMatrix = rbind(confMatrix, c(0, 0))
+  }
+  return(confMatrix)
+}
+
+createROCCurve = function(predictionModel, outcomes, testSet){
+  library(pROC)
+  
+  if (predictionModel$method == "glmnet"){
+    if (missing(testSet)){
+      outcomePrediction = predict(predictionModel, type = "prob")[1] # provides probabilities for both classes, but we only need one.
+    } else {
+      outcomePrediction = predict(predictionModel, type = "prob", newdata = testSet)[1] # provides probabilities for both classes, but we only need one.
+    }
+    rocObject = roc(outcomes, outcomePrediction[,1])
+  } else if (predictionModel$method == "glm.fit"){
+    if (missing(testSet)){
+      outcomePrediction = predict(predictionModel) # provides probabilities for both classes, but we only need one.
+    } else {
+      outcomePrediction = predict(predictionModel, newdata = testSet) # provides probabilities for both classes, but we only need one.
+    }
+    rocObject = roc(outcomes, outcomePrediction)
+  }
+  
+  
+  plot(rocObject)
+  text(0.2, 0.1, paste("AUC: ", round(auc(rocObject), 2)))
+}
+
+#load function
+
+createBarPlot = function(numericList, xLabels, title = ""){
+p = ggplot(data=as.data.frame(numericList), aes(x = xLabels, y=numericList)) +
+  geom_bar(stat="identity") + ggtitle(title) + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"),
+        plot.title = element_text(hjust = 0.5), axis.text.x = element_text(angle = 45, hjust = 1))
+return(p)
+}
+
+
+```
+
+
+
+```{r}
+#Read data from the "97genesCBRYN.csv" file, transpose, and create a data frame
+
+#"97genesCBRYN.csv" file can be changed to "20251218selectedcbr+5clinic" or "20251212wholeCBR+5clinic" or "1211clinicmerge"
+
+data <- read.csv("20251218selectedcbr+5clinic.csv", row.names=1)
+
+
+#Define conditions and group labels
+
+group <- as.numeric(data[1, ])
+
+condition <- ifelse(group == 1, "CBR_responders", "CBR_non-responders")
+
+#Create group data frame
+
+df_group <- data.frame(group)
+
+# Transpose the data
+data<-data[-c(1),]
+
+data <- as.data.frame(t(data))
+
+#Set row names for the group data frame
+
+rownames(df_group) <- rownames(data)
+
+#Combine conditions and data for ordering
+
+y_condition <- rbind(t(df_group), as.data.frame(t(data)))
+
+y_ord_condition <- y_condition[, order(as.matrix(y_condition[1,]))]
+
+y_ord <- y_ord_condition[-c(1),]
+
+#Set seed for reproducibility
+
+set.seed(1) 
+
+#Sample random numbers for test and training sets (adjusted according to the number of Response and No Response in each file)
+
+FiveRandomNumbers1 <- sort(sample.int(25, 8))
+
+FiveRandomNumbers2 <- sort(sample(26:58, 8))
+
+#Create test and training datasets
+
+data_test <- y_ord[, cbind(t(FiveRandomNumbers1), t(FiveRandomNumbers2))]
+
+data_test <- as.data.frame(t(data_test))
+
+condition_test <- condition[cbind(t(FiveRandomNumbers1), t(FiveRandomNumbers2))]
+
+condition_train <- condition[-cbind(t(FiveRandomNumbers1), t(FiveRandomNumbers2))]
+
+data_sample <- y_ord[, -cbind(t(FiveRandomNumbers1), t(FiveRandomNumbers2))]
+
+data_sample <- as.data.frame(t(data_sample))
+
+condition_sample <- condition[-cbind(t(FiveRandomNumbers1), t(FiveRandomNumbers2))]
+
+#Perform Recursive Feature Elimination (RFE) for logistic regression
+
+RFE_CBR <- performLogitRfe(data_sample, condition_sample, sizesPerIteration = seq(from=2, to=25, by=1))
+
+# Plot RFE results
+
+plot(RFE_CBR[["results"]][["Variables"]][1:24], RFE_CBR[["results"]][["Accuracy"]][1:24], type = "o", xlab="Variables", ylab = "Accuracy (Bootstrap)")
+
+# Calculate variable importance and reduce variables
+
+varImportance_CBR = calculateVariableImportance(RFE_CBR)
+
+allLogitModels_CBR = reduceVariablesLogit(data_sample, condition_sample, varImportance_CBR)
+
+
+
+#visualize first 20 variables
+
+library(dplyr)
+library(ggplot2)
+
+varImportance_CBR <- calculateVariableImportance(RFE_CBR)
+
+top20_vars <- varImportance_CBR %>%
+  arrange(desc(median)) %>%
+  head(20)
+
+var_colname <- colnames(top20_vars)[1]
+
+top20_vars[[var_colname]] <- factor(top20_vars[[var_colname]], levels = top20_vars[[var_colname]])
+
+ggplot(top20_vars, aes_string(x = var_colname, y = "median")) +
+  geom_col(fill = "steelblue") +
+  labs(
+    x = "Variable",
+    y = "Median Importance",
+    title = "Top 20 Variables by Median Importance (RFE)"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+# Plot AUC, sensitivity, specificity, and overall accuracy
+
+{
+  plot(rev(allLogitModels_CBR[[2]]$numberOfVariables)[1:35], rev(allLogitModels_CBR[[2]]$AUC)[1:35], ylim = c(0, 1), pch = 16)
+  points(rev(allLogitModels_CBR[[2]]$numberOfVariables), rev(allLogitModels_CBR[[2]]$sensitivity), col = "red", pch = 16)
+  points(rev(allLogitModels_CBR[[2]]$numberOfVariables), rev(allLogitModels_CBR[[2]]$specificity), col = "blue", pch = 16)
+  points(rev(allLogitModels_CBR[[2]]$numberOfVariables), rev(allLogitModels_CBR[[2]]$overallAccuracy), col = "green", pch = 16)
+  abline(v=7, col = "red")
+  legend("bottomright", legend = c("AUC", "sensitivity", "specificity", "overall accuracy"), col = c("black", "red", "blue", "green"), pch = 16)
+}
+
+#Choose a model
+
+chosenModel = 7
+
+#Access the coefficients of the chosen model
+
+glmProfileIndividual = allLogitModels_CBR[[1]][[dim(data_sample)[2] + 1 - chosenModel]]
+
+saveRDS(glmProfileIndividual, paste(getwd(), "/rfeResults_CBR_condition_final.rds", sep = ""))
+
+glmProfileIndividual = readRDS(paste(getwd(), "/rfeResults_CBR_condition_final.rds", sep= ""))
+
+glmProfileIndividual$coefficients
+
+#Calculate training accuracy and create ROC curve
+
+trainingAccuracy = calculateAccuracy(glmProfileIndividual, condition_train)
+
+createROCCurve(glmProfileIndividual, condition_train)
+
+#Calculate test accuracy and create ROC curve
+
+testAccuracy = calculateAccuracy(glmProfileIndividual, condition_test, data_test)
+
+createROCCurve(glmProfileIndividual, condition_test, data_test)
+
+```
+
+# RFE for RR
+LR-RFEs were used to analyses data of gene and gene with clinical characters, to see how many variables we can select with optimal choose for RR
+
+```{r}
+#Set working directory
+
+setwd(dir="D:/mine/2022NL/RR/deskR")
+
+#Load readr library
+
+library(readr)
+
+#load function from machinelearning, dataExploration & modelPreprocessing created by Rianne
+performLogitRfe = function(dataset, outcome, sizesPerIteration){
+  library(caret)
+  library(glmnet)
+  if (missing(sizesPerIteration)){
+    sizesPerIteration = c(2:dim(dataset)[2])
+  }
+  
+  control <- rfeControl(functions = caretFuncs, method = "boot", verbose=T, returnResamp = "all")
+  rfeProfile <- rfe(dataset, factor(outcome), rfeControl = control, method="glmnet", metric = "Accuracy", sizes = sizesPerIteration)
+  print(plot(rfeProfile, type = c("g", "o")))
+  return(rfeProfile)  
+}
+
+calculateVariableImportance = function(rfeProfile, meanOrMedian = "median"){
+  variableInformation = rfeProfile$variables
+  variableImportance = createEmptyDataFrame(length(unique(variableInformation$var)), 4)
+  colnames(variableImportance) = c("name", "mean", "median", "std")
+  variableImportance[,1] = unique(variableInformation$var)
+  for (i in variableImportance$name){
+    variableImportance[which(variableImportance$name == i),2] = mean(variableInformation$Overall[variableInformation$var == i])
+    variableImportance[which(variableImportance$name == i),3] = median(variableInformation$Overall[variableInformation$var == i])
+    variableImportance[which(variableImportance$name == i),4] = sd(variableInformation$Overall[variableInformation$var == i])
+  }
+  if (meanOrMedian == "mean"){
+    p = createBarPlot(variableImportance$mean, variableImportance$name, "Mean variable importance")
+  } else if (meanOrMedian == "median"){
+    p = createBarPlot(variableImportance$median, variableImportance$name, "Median variable importance")
+  }
+  
+  print(p)
+  return(variableImportance)
+  
+}
+
+performLogisticRegression = function(dataset, outcomeToTest, showSummary){
+  logitModel = glm(factor(outcomeToTest)~., family=binomial(link='logit'), data = dataset)
+  if (!missing(showSummary)){
+    print(summary(logitModel))
+  }
+  return(logitModel)
+}
+
+createEmptyDataFrame = function(nrows, ncols, rowNames, columnNames){
+  dataset = data.frame(matrix(ncol = ncols, nrow = nrows))
+  if (!missing(columnNames)){
+    colnames(dataset) = columnNames
+  }
+  if (!missing(rowNames)){
+    row.names(dataset) = rowNames
+  }
+  return(dataset)
+}
+
+reduceVariablesLogit = function(trainingSet, outcomeData, variableImportance, meanOrMedian = "median"){
+  library(pROC)
+  
+  if (meanOrMedian == "median"){
+    variableImportance = variableImportance[order(variableImportance$median),]
+  } else if (meanOrMedian == "mean"){
+    variableImportance = variableImportance[order(variableImportance$mean),]
+  }
+  sortedDataset = trainingSet[,c(variableImportance$name)]
+  allLogitModels = list()
+  modelAuc = createEmptyDataFrame(dim(variableImportance)[1]-2, 5)
+  colnames(modelAuc) = c("AUC", "sensitivity", "specificity", "overallAccuracy", "numberOfVariables")
+  for (i in 1:(dim(variableImportance)[1]-2)){
+    print(i)
+    reducedDataset = sortedDataset[,(i+1):dim(sortedDataset)[2]]
+    allLogitModels[[i]] = performLogisticRegression(reducedDataset, outcomeData)
+    modelAuc[i,1] = auc(roc(outcomeData, predict(allLogitModels[[i]], type="response")))
+    modelAuc[i,2] = calculateAccuracy(allLogitModels[[i]], outcomeData)[[1]]$sensitivity
+    modelAuc[i,3] = calculateAccuracy(allLogitModels[[i]], outcomeData)[[1]]$specificity
+    modelAuc[i,4] = calculateAccuracy(allLogitModels[[i]], outcomeData)[[1]]$overallAccuracy
+    modelAuc[i,5] = dim(reducedDataset)[2]
+  }
+  return(list(allLogitModels, modelAuc))
+}
+
+calculateAccuracy = function(predictionModel, testSetOutcomes, testSet){
+  # does not calculate AUC, but accuracy (TPR, TNR, FNR)
+  confMatrix = createConfusionMatrix(predictionModel, testSetOutcomes, testSet)
+  sensitivity = confMatrix[1,1] / (confMatrix[1,1] + confMatrix[2,1])
+  specificity = confMatrix[2,2] / (confMatrix[1,2] + confMatrix[2,2])
+  overallAccuracy = sum(confMatrix[1,1] + confMatrix[2,2]) / sum(confMatrix)
+  return(list(
+    data.frame("sensitivity" = sensitivity, "specificity" = specificity, "overallAccuracy" = overallAccuracy),
+    confMatrix))
+}
+
+createConfusionMatrix = function(predictionModel, actualOutcomes, testSet){
+  if (missing(testSet)){
+    # predict onto trainingset
+    modelPrediction = predict(predictionModel)
+  } else {
+    modelPrediction = predict(predictionModel, newdata = testSet)
+  }
+  if (predictionModel$method == "glmnet"){
+    confMatrix = table(modelPrediction, actualOutcomes)
+  } else if (predictionModel$method == "glm.fit"){
+    confMatrix = table(ifelse(modelPrediction > 0.5, 2, 1), actualOutcomes)
+  }
+  if (dim(confMatrix)[1] != 2){
+    confMatrix = rbind(confMatrix, c(0, 0))
+  }
+  return(confMatrix)
+}
+
+createROCCurve = function(predictionModel, outcomes, testSet){
+  library(pROC)
+  
+  if (predictionModel$method == "glmnet"){
+    if (missing(testSet)){
+      outcomePrediction = predict(predictionModel, type = "prob")[1] # provides probabilities for both classes, but we only need one.
+    } else {
+      outcomePrediction = predict(predictionModel, type = "prob", newdata = testSet)[1] # provides probabilities for both classes, but we only need one.
+    }
+    rocObject = roc(outcomes, outcomePrediction[,1])
+  } else if (predictionModel$method == "glm.fit"){
+    if (missing(testSet)){
+      outcomePrediction = predict(predictionModel) # provides probabilities for both classes, but we only need one.
+    } else {
+      outcomePrediction = predict(predictionModel, newdata = testSet) # provides probabilities for both classes, but we only need one.
+    }
+    rocObject = roc(outcomes, outcomePrediction)
+  }
+  
+  
+  plot(rocObject)
+  text(0.2, 0.1, paste("AUC: ", round(auc(rocObject), 2)))
+}
+
+#load function
+
+createBarPlot = function(numericList, xLabels, title = ""){
+p = ggplot(data=as.data.frame(numericList), aes(x = xLabels, y=numericList)) +
+  geom_bar(stat="identity") + ggtitle(title) + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"),
+        plot.title = element_text(hjust = 0.5), axis.text.x = element_text(angle = 45, hjust = 1))
+return(p)
+}
+
+
+#Read data from "20251218selectedRR+5clinic.csv" file with row names
+
+data <- read.csv("20251218selectedRR+5clinic.csv", row.names=1)
+
+#"20251218selectedRR+5clinic.csv" can be changed to "103RRYN.csv","20251212wholeRR+5clinic","20251212mergeRR"
+
+#Import custom functions
+
+source("D:/mine/2022NL/RR/deskCBR/importAllHandmadeFunctions.R")
+
+#Define script locations
+
+scriptsLocations <- paste(getwd(), "scripts/")
+
+#Import all custom functions
+
+importAllHandmadeFunctions(scriptsLocations)
+
+#Load ggplot2 library
+
+library(ggplot2)
+
+#Define conditions and group labels
+
+group <- as.numeric(data[1, ])
+
+condition <- ifelse(group == 1, "RR_responders", "RR_non-responders")
+
+#Create group data frame
+
+df_group <- data.frame(group)
+
+# Transpose the data
+data<-data[-c(1),]
+
+data <- as.data.frame(t(data))
+
+
+#Set row names for the group data frame
+
+rownames(df_group) <- rownames(data)
+
+#Combine conditions and data for sorting
+
+y_condition <- rbind(t(df_group), as.data.frame(t(data)))
+
+y_ord_condition <- y_condition[, order(as.matrix(y_condition[1,]))]
+
+y_ord <- y_ord_condition[-c(1),]
+
+#Set seed for reproducibility
+
+set.seed(1)
+
+#Generate two sets of random numbers (adjusted according to the number of Response and No Response in each file)
+
+FiveRandomNumbers1 <- sort(sample.int(30, 8))
+
+FiveRandomNumbers2 <- sort(sample(31:58, 8))
+
+#Create test and training data sets
+
+data_test <- y_ord[, cbind(t(FiveRandomNumbers1), t(FiveRandomNumbers2))]
+
+data_test <- as.data.frame(t(data_test))
+
+condition_test <- condition[cbind(t(FiveRandomNumbers1), t(FiveRandomNumbers2))]
+
+condition_train <- condition[-cbind(t(FiveRandomNumbers1), t(FiveRandomNumbers2))]
+
+data_sample <- y_ord[, -cbind(t(FiveRandomNumbers1), t(FiveRandomNumbers2))]
+
+data_sample <- as.data.frame(t(data_sample))
+
+condition_sample <- condition[-cbind(t(FiveRandomNumbers1), t(FiveRandomNumbers2))]
+
+#Perform Recursive Feature Elimination (RFE) for logistic regression
+
+RFE_RR <- performLogitRfe(data_sample, condition_sample, sizesPerIteration = seq(from=2, to=25, by=1)) 
+
+# Plot RFE results
+plot(RFE_RR[["results"]][["Variables"]][1:24], RFE_RR[["results"]][["Accuracy"]][1:24], type = "o", xlab="Variables", ylab = "Accuracy (Bootstrap)")
+
+# Calculate variable importance and reduce variables for logistic regression
+varImportance_RR = calculateVariableImportance(RFE_RR)
+allLogitModels_RR = reduceVariablesLogit(data_sample, condition_sample, varImportance_RR)
+
+
+
+#visualize first 20 variables
+
+
+library(dplyr)
+library(ggplot2)
+
+# 1. 
+varImportance_RR <- calculateVariableImportance(RFE_RR)
+
+# 2. 
+top20_vars <- varImportance_RR %>%
+  arrange(desc(median)) %>%
+  head(20)
+
+# 3. 
+var_colname <- colnames(top20_vars)[1]
+
+top20_vars[[var_colname]] <- factor(top20_vars[[var_colname]],
+                                    levels = top20_vars[[var_colname]])
+
+# 4. 
+ggplot(top20_vars, aes_string(x = var_colname, y = "median")) +
+  geom_col(fill = "steelblue") +
+  labs(
+    x = "Variable",
+    y = "Median Importance",
+    title = "Top 20 Variables by Median Importance (RFE)"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Calculate variable importance and reduce variables for logistic regression
+varImportance_RR = calculateVariableImportance(RFE_RR)
+allLogitModels_RR = reduceVariablesLogit(data_sample, condition_sample, varImportance_RR)
+
+
+# Plot AUC, sensitivity, specificity, and overall accuracy
+{
+  plot(rev(allLogitModels_RR[[2]]$numberOfVariables)[1:35], rev(allLogitModels_RR[[2]]$AUC)[1:35], ylim = c(0, 1), pch = 16)
+  points(rev(allLogitModels_RR[[2]]$numberOfVariables), rev(allLogitModels_RR[[2]]$sensitivity), col = "red", pch = 16)
+  points(rev(allLogitModels_RR[[2]]$numberOfVariables), rev(allLogitModels_RR[[2]]$specificity), col = "blue", pch = 16)
+  points(rev(allLogitModels_RR[[2]]$numberOfVariables), rev(allLogitModels_RR[[2]]$overallAccuracy), col = "green", pch = 16)
+  abline(v=7, col = "red")
+  legend("bottomright", legend = c("AUC", "sensitivity", "specificity", "overall accuracy"), col = c("black", "red", "blue", "green"), pch = 16)
+} 
+
+#Choose a model
+chosenModel = 8
+
+#Get coefficients for the chosen model
+
+glmProfileIndividual = allLogitModels_RR[[1]][[dim(data_sample)[2] + 1 - chosenModel]]
+
+saveRDS(glmProfileIndividual, paste(getwd(), "/rfeResults_RR_condition_final.rds", sep = ""))
+
+glmProfileIndividual = readRDS(paste(getwd(), "/rfeResults_RR_condition_final.rds", sep= ""))
+
+glmProfileIndividual$coefficients
+
+#Calculate training accuracy and create ROC curve
+
+trainingAccuracy = calculateAccuracy(glmProfileIndividual, condition_train)
+
+createROCCurve(glmProfileIndividual, condition_train)
+
+#Calculate test accuracy and create ROC curve
+
+testAccuracy = calculateAccuracy(glmProfileIndividual, condition_test, data_test)
+
+createROCCurve(glmProfileIndividual, condition_test, data_test)
+
+```
+
+
+# dotplot (CBR)
+levels of the variables selected by the models to predict Response to treatment in EC patients
+```{r}
+# clinic features: read "5clinicRFE_CBR.rds"
+RFE_CBR <- readRDS("5clinicRFE_CBR.rds")
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Step 1: prepare data
+plot_df <- data %>%
+  as.data.frame() %>%
+  select(ERIHC_bi2, Grade, PRIHC_bi2) %>%
+  mutate(
+    type = df_group$type,
+    group_label = ifelse(type == 0, "No response", "Response")
+  )
+
+# Step 2: long format
+plot_df_long <- plot_df %>%
+  pivot_longer(
+    cols = c(ERIHC_bi2, Grade, PRIHC_bi2),
+    names_to = "variable",
+    values_to = "value"
+  )
+
+
+# Step 3: calculate p-values (Wilcoxon test) with 3 decimal places
+p_values <- plot_df_long %>%
+  group_by(variable) %>%
+  summarise(
+    p_value = chisq.test(table(value, group_label))$p.value,
+    .groups = "drop"
+  ) %>%
+  mutate(
+    label = ifelse(
+      p_value < 0.001,
+      "p < 0.001",
+      paste0("p = ", sprintf("%.3f", p_value))
+    )
+  )
+
+
+
+# Step 4: plot (dotplot) with p-values
+
+ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
+  geom_jitter(width = 0.15, size = 2, alpha = 0.7) +
+  facet_wrap(~ variable, scales = "free_y") +
+  labs(
+    x = "Group",
+    y = "Value",
+    color = "Group",
+    title = "Distribution of key predictors by response status"
+  ) +
+  theme_minimal(base_size = 14)
+
+p_table <- p_values %>%
+  select(variable, p_value, label) %>%
+  arrange(variable)
+
+p_table
+
+
+### 5 clinic+wholeDEGS
+RFE_CBR <- readRDS("5clinic+wholeDEGSRFE_CBR.rds")
+
+# dotplot
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Continuous variables
+continuous_vars <- c(
+  "ENSG00000127554","Age","ENSG00000134216",
+  "ENSG00000198881","ENSG00000285854"
+)
+
+# Categorical variables
+categorical_vars <- c("FIGOstage","ERIHC_bi2","PRIHC_bi2","Grade")
+
+# Step 1: clean data
+plot_df <- data %>%
+  as.data.frame() %>%
+  select(all_of(c(continuous_vars, categorical_vars))) %>%
+  mutate(
+    type = df_group$type,
+    group_label = ifelse(type == 0, "No response", "Response")
+  )
+
+# Step 2: long format
+plot_df_long <- plot_df %>%
+  pivot_longer(
+    cols = all_of(c(continuous_vars, categorical_vars)),
+    names_to = "variable",
+    values_to = "value"
+  )
+
+# Step 3: compute overall mean for continuous variables
+mean_df <- plot_df_long %>%
+  filter(variable %in% continuous_vars) %>%
+  mutate(value = as.numeric(value)) %>%
+  group_by(variable, group_label) %>%
+  summarise(mean_val = mean(value, na.rm = TRUE), .groups = "drop")
+
+
+# Step 4: continuous-variable p-values (Wilcoxon)
+p_df <- plot_df_long %>%
+  filter(variable %in% continuous_vars) %>%
+  mutate(value = as.numeric(value)) %>%
+  group_by(variable) %>%
+  summarise(
+    p = wilcox.test(value ~ group_label)$p.value,
+    p_label = ifelse(p < 0.001, "P < 0.001", sprintf("P = %.3f", p)),
+    .groups = "drop"
+  )
+
+# Step 5: merge p-values back for plotting
+plot_df_long <- plot_df_long %>%
+  left_join(p_df %>% select(variable, p_label), by = "variable")
+
+# Step 6: plot
+ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
+  geom_jitter(width = 0.15, size = 2, alpha = 0.7) +
+  facet_wrap(~ variable, scales = "free_y") +
+  labs(
+    x = "Group",
+    y = "Value",
+    color = "Group",
+    title = "Distribution of Predictors by Response Status"
+  ) +
+  theme_minimal(base_size = 14)
+
+
+
+p_cont <- plot_df_long %>%
+  filter(variable %in% continuous_vars) %>%
+  mutate(value = as.numeric(value)) %>%
+  group_by(variable) %>%
+  summarise(
+    p_value = wilcox.test(value ~ group_label)$p.value,
+    .groups = "drop"
+  )
+
+p_cat <- plot_df_long %>%
+  filter(variable %in% categorical_vars) %>%
+  group_by(variable) %>%
+  summarise(
+    p_value = chisq.test(table(value, group_label))$p.value,
+    .groups = "drop"
+  )
+
+p_table <- bind_rows(p_cont, p_cat) %>%
+  mutate(
+    `P value` = ifelse(
+      p_value < 0.001,
+      "P < 0.001",
+      sprintf("P = %.3f", p_value)
+    )
+  ) %>%
+  select(
+    Variable = variable,
+    `P value`
+  ) %>%
+  arrange(Variable)
+
+
+p_table
+
+#### 97genesCBR
+RFE_CBR <- readRDS("DEGSRFE_CBR.rds")
+
+# 1. 
+continuous_vars <- c(
+  "ENSG00000236095","ENSG00000225647","ENSG00000208892",
+  "ENSG00000259277","ENSG00000229953","ENSG00000198881",
+  "ENSG00000269930","ENSG00000285854","ENSG00000249784"
+)
+
+#2. 
+plot_df <- data %>%
+  as.data.frame() %>%
+  select(all_of(c(continuous_vars))) %>%
+  mutate(
+    type = df_group$type,
+    group_label = ifelse(type == 0, "No response", "Response")
+  )
+
+#3. 
+plot_df_long <- plot_df %>%
+  pivot_longer(
+    cols = all_of(c(continuous_vars)),
+    names_to = "variable",
+    values_to = "value"
+  )
+
+# 4.
+mean_df <- plot_df_long %>%
+  filter(variable %in% continuous_vars) %>%
+  mutate(value = as.numeric(value)) %>%
+  group_by(variable) %>%
+  summarise(mean_val = mean(value, na.rm = TRUE), .groups = "drop")
+
+# 5. 
+p_df <- plot_df_long %>%
+  filter(variable %in% continuous_vars) %>%
+  mutate(value = as.numeric(value)) %>%
+  group_by(variable) %>%
+  summarise(
+    p = wilcox.test(value ~ group_label)$p.value,
+    p_label = ifelse(p < 0.001, "P < 0.001", sprintf("P = %.3f", p)),
+    .groups = "drop"
+  )
+
+#6. 
+plot_df_long <- plot_df_long %>%
+  left_join(p_df %>% select(variable, p_label), by = "variable")
+
+#7. 
+ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
+  geom_jitter(width = 0.15, size = 2, alpha = 0.7) +
+  facet_wrap(~ variable, scales = "free_y") +
+  labs(
+    x = "Group",
+    y = "Value",
+    color = "Group",
+    title = "Distribution of Key Predictors by Response Status"
+  ) +
+  theme_minimal(base_size = 14)
+
+
+
+p_table <- plot_df_long %>%
+  group_by(variable) %>%
+  summarise(
+    p_value = wilcox.test(as.numeric(value) ~ group_label)$p.value,
+    .groups = "drop"
+  ) %>%
+  mutate(
+    `P value` = ifelse(p_value < 0.001, "P < 0.001", sprintf("P = %.3f", p_value))
+  ) %>%
+  select(
+    Variable = variable,
+    `P value`
+  ) %>%
+  arrange(Variable)
+
+p_table
+
+### 5 clinic+selectedDEGS
+RFE_CBR <- readRDS("202512185clinic+selectedDEGSRFE_CBR.rds")
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+
+continuous_vars <- c(
+  "ENSG00000177992", "ENSG00000285854",
+  "ENSG00000198881"
+)
+
+categorical_vars <- c(
+  "FIGOstage", "ERIHC_bi2", "PRIHC_bi2", "Grade"
+)
+
+
+plot_df <- data %>%
+  as.data.frame() %>%
+  select(all_of(c(continuous_vars, categorical_vars))) %>%
+  mutate(
+    type = df_group$type,
+    group_label = ifelse(type == 0, "No response", "Response")
+  )
+
+
+plot_df_long <- plot_df %>%
+  pivot_longer(
+    cols = all_of(c(continuous_vars, categorical_vars)),
+    names_to = "variable",
+    values_to = "value"
+  )
+
+
+p_cont <- plot_df_long %>%
+  filter(variable %in% continuous_vars) %>%
+  group_by(variable) %>%
+  summarise(
+    p_value = wilcox.test(as.numeric(value) ~ group_label)$p.value,
+    .groups = "drop"
+  )
+
+
+p_cat <- plot_df_long %>%
+  filter(variable %in% categorical_vars) %>%
+  group_by(variable) %>%
+  summarise(
+    p_value = chisq.test(table(value, group_label))$p.value,
+    .groups = "drop"
+  )
+
+
+p_table <- bind_rows(p_cont, p_cat) %>%
+  mutate(
+    `P value` = ifelse(p_value < 0.001, "P < 0.001", sprintf("P = %.3f", p_value))
+  ) %>%
+  select(
+    Variable = variable,
+    `P value`
+  ) %>%
+  arrange(Variable)
+
+# 查看表格
+p_table
+
+
+ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
+  geom_jitter(width = 0.15, size = 2, alpha = 0.7) +
+  facet_wrap(~ variable, scales = "free_y") +
+  labs(
+    x = "Group",
+    y = "Value",
+    color = "Group",
+    title = "Distribution of Predictors by Response Status"
+  ) +
+  theme_minimal(base_size = 14)
+
+
+summary_cont <- plot_df_long %>%
+  filter(variable %in% continuous_vars) %>%
+  mutate(value = as.numeric(value)) %>%
+  group_by(variable, group_label) %>%
+  summarise(
+    mean   = mean(value, na.rm = TRUE),
+    median = median(value, na.rm = TRUE),
+    Q1     = quantile(value, 0.25, na.rm = TRUE),
+    Q3     = quantile(value, 0.75, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+summary_cont
+
+```
+
+# dotplot (RR)
+levels of the variables selected by the models to predict Response to treatment in EC patients
+```{r}
+### 103RR
+RFE_RR <- readRDS("wholeDEGSRFE_RR.rds")
+
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+
+continuous_vars <- c("ENSG00000273771","ENSG00000235795","ENSG00000286329",
+  "ENSG00000243546","ENSG00000231749","ENSG00000205704","ENSG00000274767"
+)
+
+
+plot_df <- data %>%
+  as.data.frame() %>%
+  select(all_of(continuous_vars)) %>%
+  mutate(
+    type = df_group$type,
+    group_label = ifelse(type == 0, "No response", "Response")
+  )
+
+
+plot_df_long <- plot_df %>%
+  pivot_longer(
+    cols = all_of(continuous_vars),
+    names_to = "variable",
+    values_to = "value"
+  )
+
+
+p_table <- plot_df_long %>%
+  group_by(variable) %>%
+  summarise(
+    p_value = wilcox.test(as.numeric(value) ~ group_label)$p.value,
+    .groups = "drop"
+  ) %>%
+  mutate(
+    `P value` = ifelse(p_value < 0.001, "P < 0.001", sprintf("P = %.3f", p_value))
+  ) %>%
+  select(
+    Variable = variable,
+    `P value`
+  ) %>%
+  arrange(Variable)
+
+# 查看表格
+p_table
+
+
+ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
+  geom_jitter(width = 0.15, size = 2, alpha = 0.7) +
+  facet_wrap(~ variable, scales = "free_y") +
+  labs(
+    x = "Group",
+    y = "Value",
+    color = "Group",
+    title = "Distribution of Continuous Predictors by Response Status"
+  ) +
+  theme_minimal(base_size = 14)
+
+
+
+### 5clinics
+# dotplot
+# 读取 RDS 文件
+RFE_RR <- readRDS("5clinicRFE_RR.rds")
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Step 1: prepare data
+plot_df <- data %>%
+  as.data.frame() %>%
+  select(ERIHC_bi2, Grade, PRIHC_bi2) %>%
+  mutate(
+    type = df_group$type,
+    group_label = ifelse(type == 0, "No response", "Response")
+  )
+
+# Step 2: long format
+plot_df_long <- plot_df %>%
+  pivot_longer(
+    cols = c(ERIHC_bi2, Grade, PRIHC_bi2),
+    names_to = "variable",
+    values_to = "value"
+  )
+
+
+# Step 3: calculate p-values (Wilcoxon test) with 3 decimal places
+p_values <- plot_df_long %>%
+  group_by(variable) %>%
+  summarise(
+    p_value = chisq.test(table(value, group_label))$p.value,
+    .groups = "drop"
+  ) %>%
+  mutate(
+    label = ifelse(
+      p_value < 0.001,
+      "p < 0.001",
+      paste0("p = ", sprintf("%.3f", p_value))
+    )
+  )
+
+
+
+# Step 4: plot (dotplot) with p-values
+
+ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
+  geom_jitter(width = 0.15, size = 2, alpha = 0.7) +
+  facet_wrap(~ variable, scales = "free_y") +
+  labs(
+    x = "Group",
+    y = "Value",
+    color = "Group",
+    title = "Distribution of key predictors by response status"
+  ) +
+  theme_minimal(base_size = 14)
+
+p_table <- p_values %>%
+  select(variable, p_value, label) %>%
+  arrange(variable)
+
+p_table
+
+
+#### 20251212wholeRR+5clinic.csv
+# 读取 RDS 文件
+RFE_RR <- readRDS("wholedegsRR+5clinicRFE_RR.rds")
+
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+
+continuous_vars <- c(
+  "ENSG00000271810", "ENSG00000205056",
+  "ENSG00000277268", "ENSG00000274767", "ENSG00000205704"
+)
+
+categorical_vars <- c(
+  "FIGOstage", "Grade", "ERIHC_bi2", "PRIHC_bi2"
+)
+
+
+plot_df <- data %>%
+  as.data.frame() %>%
+  select(all_of(c(continuous_vars, categorical_vars))) %>%
+  mutate(
+    type = df_group$type,
+    group_label = ifelse(type == 0, "No response", "Response")
+  )
+
+
+plot_df_long <- plot_df %>%
+  pivot_longer(
+    cols = all_of(c(continuous_vars, categorical_vars)),
+    names_to = "variable",
+    values_to = "value"
+  )
+
+
+p_cont <- plot_df_long %>%
+  filter(variable %in% continuous_vars) %>%
+  group_by(variable) %>%
+  summarise(
+    p_value = wilcox.test(as.numeric(value) ~ group_label)$p.value,
+    .groups = "drop"
+  )
+
+
+p_cat <- plot_df_long %>%
+  filter(variable %in% categorical_vars) %>%
+  group_by(variable) %>%
+  summarise(
+    p_value = chisq.test(table(value, group_label))$p.value,
+    .groups = "drop"
+  )
+
+
+p_table <- bind_rows(p_cont, p_cat) %>%
+  mutate(
+    `P value` = ifelse(p_value < 0.001, "P < 0.001", sprintf("P = %.3f", p_value))
+  ) %>%
+  select(
+    Variable = variable,
+    `P value`
+  ) %>%
+  arrange(Variable)
+
+# 查看表格
+p_table
+
+
+ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
+  geom_jitter(width = 0.15, size = 2, alpha = 0.7) +
+  facet_wrap(~ variable, scales = "free_y") +
+  labs(
+    x = "Group",
+    y = "Value",
+    color = "Group",
+    title = "Distribution of Predictors by Response Status"
+  ) +
+  theme_minimal(base_size = 14)
+
+
+
+### 20251218selectedRR+5clinic
+RFE_RR <- readRDS("20251218selecteddegsRR+5clinicRFE_RR.rds")
+
+# dotplot
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+
+continuous_vars <- c(
+  "ENSG00000085465", "ENSG00000141858", "ENSG00000208892",
+  "ENSG00000127554", "ENSG00000163481", "ENSG00000130948",
+  "Age", "ENSG00000207523"
+)
+
+categorical_vars <- c(
+  "FIGOstage", "ERIHC_bi2", "Grade", "PRIHC_bi2"
+)
+
+
+plot_df <- data %>%
+  as.data.frame() %>%
+  select(all_of(c(continuous_vars, categorical_vars))) %>%
+  mutate(
+    type = df_group$type,
+    group_label = ifelse(type == 0, "No response", "Response")
+  )
+
+
+plot_df_long <- plot_df %>%
+  pivot_longer(
+    cols = all_of(c(continuous_vars, categorical_vars)),
+    names_to = "variable",
+    values_to = "value"
+  )
+
+
+p_cont <- plot_df_long %>%
+  filter(variable %in% continuous_vars) %>%
+  group_by(variable) %>%
+  summarise(
+    p_value = wilcox.test(as.numeric(value) ~ group_label)$p.value,
+    .groups = "drop"
+  )
+
+
+p_cat <- plot_df_long %>%
+  filter(variable %in% categorical_vars) %>%
+  group_by(variable) %>%
+  summarise(
+    p_value = chisq.test(table(value, group_label))$p.value,
+    .groups = "drop"
+  )
+
+
+p_table <- bind_rows(p_cont, p_cat) %>%
+  mutate(
+    `P value` = ifelse(p_value < 0.001, "P < 0.001", sprintf("P = %.3f", p_value))
+  ) %>%
+  select(
+    Variable = variable,
+    `P value`
+  ) %>%
+  arrange(Variable)
+
+# 查看表格
+p_table
+
+
+
+ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
+  geom_jitter(width = 0.15, size = 2, alpha = 0.7) +
+  facet_wrap(~ variable, scales = "free_y") +
+  labs(
+    x = "Group",
+    y = "Value",
+    color = "Group",
+    title = "Distribution of Predictors by Response Status"
+  ) +
+  theme_minimal(base_size = 14)
+
+
+
+
+summary_cont <- plot_df_long %>%
+  filter(variable %in% continuous_vars) %>%
+  mutate(value = as.numeric(value)) %>%
+  group_by(variable, group_label) %>%
+  summarise(
+    Mean   = mean(value, na.rm = TRUE),
+    Median = median(value, na.rm = TRUE),
+    Q1     = quantile(value, 0.25, na.rm = TRUE),
+    Q3     = quantile(value, 0.75, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+summary_cont
+
+```
+              
