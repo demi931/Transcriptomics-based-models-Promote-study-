@@ -46,7 +46,7 @@ summary(pcdat)
 
 plotdat <- as.data.frame(pcdat$x[, 1:2])
 
-plotdat$genotype <- c(
+plotdat$Location <- c(
   "maastricht", "nijmegen", "groningen", "NKI-amsterdam", "UK", "Eindhoven", "Bergen", "UK",
   "Eindhoven", "maastricht", "Rotterdam", "utrecht", "Bergen", "arnem", "amsterdam", "NKI-amsterdam",
   "Rotterdam", "nijmegen", "maastricht", "maastricht", "utrecht", "OSLO", "Eindhoven", "CZ-BRN",
@@ -55,16 +55,20 @@ plotdat$genotype <- c(
   "Rotterdam", "nijmegen", "OSLO", "NKI-amsterdam", "NKI-amsterdam", rep("nijmegen", 14)
 )
 
-plotdat$genotype <- paste0(
+length(unique(plotdat$Location))
+unique(plotdat$Location)
+
+plotdat$Location <- paste0(
   "Location",
-  match(plotdat$genotype, unique(plotdat$genotype))
+  match(plotdat$Location, unique(plotdat$Location))
 )
 
-#Create a scatter plot with ellipses.
 
-ggplot(plotdat, aes(x=PC1, y=PC2, colour=genotype)) +
-  geom_point(size=3) +  
-  stat_ellipse(level=0.9) 
+# Create a scatter plot with ellipses
+ggplot(plotdat, aes(x=PC1, y=PC2, colour=Location)) +
+  geom_point(size=3) +  # Add points to the plot
+  stat_ellipse(level=0.9)  # Add ellipses to the plot
+
 ```
   
   
@@ -1598,6 +1602,7 @@ ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
 
 ```
               
+
 
 
 
