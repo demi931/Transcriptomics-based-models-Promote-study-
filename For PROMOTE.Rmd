@@ -30,10 +30,10 @@ library(glmnet)
 # Preparation
 These tasks need to be done before the data analysis can begin.
 ```{r}
-expr_file <- "data/expression/PROMOTE_RR_counts.csv"
+expr_file <- "data/input/PROMOTE_RR_counts.csv"
 
 if (!file.exists(expr_file)) {
-  stop("Expression file not found: ", expr_file)
+  stop("input file not found: ", expr_file)
 }
 data <- read.csv(expr_file, row.names = 1, check.names = FALSE)
 data2 <- data[rowSums(data) != 0, ]
@@ -1606,6 +1606,7 @@ ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
 
 ```
               
+
 
 
 
