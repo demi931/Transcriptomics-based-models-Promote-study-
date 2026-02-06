@@ -57,3 +57,4 @@ The analysis requires the following input files:
 2.  Ensure all file paths are defined relative to the project root
     
 3.  Run the main analysis report
+    rmarkdown::render("FOR PROMOTE.Rmd")
