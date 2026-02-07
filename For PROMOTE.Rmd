@@ -151,7 +151,11 @@ expr_with_group <- read.csv(
 )
 
 # Extract group information (sample-level annotation)
-group_vec <- as.factor(as.character(unlist(expr_with_group["group", ])))
+group_vec <- factor(
+  as.character(unlist(expr_with_group["group", ])),
+  levels = c("0", "1"),
+  labels = c("No clinical benefit", "Clinical benefit")
+)
 
 # Remove group row to obtain expression matrix only
 expr_matrix <- expr_with_group[rownames(expr_with_group) != "group", ]
@@ -1605,6 +1609,7 @@ ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
 
 ```
               
+
 
 
 
