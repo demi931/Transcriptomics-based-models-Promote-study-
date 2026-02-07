@@ -25,10 +25,12 @@ library(caret)
 library(glmnet)
 
 ```
-# PCA (Location)
-
 # Preparation
 These tasks need to be done before the data analysis can begin.
+
+# PCA (Location)
+
+
 ```{r}
 expr_file <- "data/input/PROMOTE2samplechangeRR60samples(1).csv"
 
@@ -1603,6 +1605,7 @@ ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
 
 ```
               
+
 
 
 
