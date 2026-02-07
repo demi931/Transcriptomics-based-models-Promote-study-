@@ -274,54 +274,49 @@ ggplot(plotdat, aes(
 Here we want to visualize difference from RR no response and response patients
 
 ```{r}
-#Read data from the "20260128stagepca.csv" file, using the first column as row names
+#Read data from the "20260128stagepca(1).csv" file, using the first column as row names
 
-data <- read.csv("data/input/20260128stagepca.csv", row.names=1)
-stage_vec <- as.numeric(data["stage", ])
+data <- read.csv("data/input/20260128stagepca(1).csv", row.names=1)
 
-#Filter out rows where the sum of values is not equal to zero
+# Extract sample annotations
+group_vec <- as.factor(as.character(unlist(data["group", ])))
+stage_vec <- as.factor(as.character(unlist(data["stage", ])))
 
-data2 <- data[rowSums(data) != 0,]
+expr_mat <- data[!rownames(data) %in% c("group", "stage"), ]
+expr_mat <- expr_mat[rowSums(expr_mat) != 0, ]
+data1 <- t(expr_mat)
 
-#Transpose the filtered data
-
-data1 <- t(data2)
-
-#Perform Principal Component Analysis (PCA) on the transposed and scaled data
-
-pcdat <- prcomp(data1, scale=TRUE)
-
-#Display a summary of the PCA results
-
+pcdat <- prcomp(data1, scale. = TRUE)
 summary(pcdat)
+plotdat <- as.data.frame(pcdat$x[, 1:2])
 
-#Create a data frame from the first two principal components
-
-plotdat <- as.data.frame(pcdat$x[,1:2])
-
-#Add a 'genotype' column to the data frame
-
-plotdat$genotype <- c(rep("No response", 30), rep("Response", 27))
-
-stage_group <- factor(
-  stage_vec,
-  levels = c(0, 1, 3, 4),
-  labels = c("Recurrence", "Stage1", "Stage3", "Stage4")
+# Add group (colour)
+plotdat$Response <- factor(
+  group_vec,
+  levels = c("0", "1"),
+  labels = c("No response", "Response")
 )
 
-#Create a scatter plot using ggplot with PC1 and PC2, colored by 'genotype'
+# Add stage (shape)
+plotdat$Stage <- factor(
+  stage_vec,
+  levels = c("0", "1", "3", "4"),
+  labels = c("Recurrence", "Stage1", "Stage3", "Stage4")
+)
+library(ggplot2)
+library(ggforce)
 
-ggplot(plotdat, aes(
-  x = PC1,
-  y = PC2,
-  colour = genotype,
-  shape = stage_group
-)) +
+ggplot(
+  plotdat,
+  aes(
+    x = PC1,
+    y = PC2,
+    colour = Response,
+    shape = Stage
+  )
+) +
   geom_point(size = 3) +
   theme_classic()
-```
-
-
 # RFE for CBR
 LR-RFEs were used to analyses data of gene and gene with clinical characters, to see how many variables we can select with optimal choose for CBR
 ```{r}
@@ -1587,6 +1582,7 @@ ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
 
 ```
               
+
 
 
 
