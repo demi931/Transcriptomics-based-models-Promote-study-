@@ -80,18 +80,19 @@ ggplot(plotdat, aes(x=PC1, y=PC2, colour=Location)) +
 Let's normalize raw data and find difference genes by DESeq2.
 ```{r}
 #Read and preprocess data and Filter out rows where the sum of values is not equal to zero
-data <- read.csv("CODE/PROMOTE2.csv", row.names=1)
+expr_file <- "data/input/PROMOTE2.csv"
+
+if (!file.exists(expr_file)) {
+  stop("input file not found: ", expr_file)
+}
+data <- read.csv(expr_file, row.names = 1, check.names = FALSE)
 data2 <- data[rowSums(data) != 0,]
 
 
 
 #Read the CSV file "PROMOTE2.1.csv" into a data frame, treating strings as factors
 
-data1 <- read.csv("supplement2.23/CBR/PROMOTE2.1.csv", stringsAsFactors = TRUE)
-
-#Check if column names of data2 match with the 'id' column in data1
-
-colnames(data2) == data1$id
+data1 <- read.csv("data/input/PROMOTE2.1.csv", stringsAsFactors = TRUE)
 
 
 #Create a DESeqDataSet object from the count data and colData, designating the formula ~CBR
@@ -144,7 +145,7 @@ We want to find if there is difference from CBR no response and response patient
 
 #Read data from the "foldchangeJ.csv" file, using the first column as row names
 
-data <- read.csv("CODE/CBR/foldchangeJ.csv", row.names=1)
+data <- read.csv("data/input/foldchangeJ.csv", row.names=1)
 
 #Apply log2 transformation to the data and store it in log2J
 
@@ -190,7 +191,7 @@ B
 We want to find if there is difference from RR no response and response patients and visualize
 ```{r}
 #Read data from the "RRfoldchangeJ.csv" file, using the first column as row names
-data <- read.csv("CODE/RR/RRfoldchangeJ.csv", row.names=1)
+data <- read.csv("data/input/RRfoldchangeJ.csv", row.names=1)
 
 #Apply log2 transformation to the data and store it in log2J
 
@@ -237,7 +238,7 @@ Here we want to visualize difference from CBR no response and response patients
 
 #Read data from the "20260128stagepcacbr.csv" file, using the first column as row names
 
-data <- read.csv("CODE/CBR/20260128stagepcacbr.csv", row.names=1)
+data <- read.csv("data/input/20260128stagepcacbr.csv", row.names=1)
 stage_vec <- as.numeric(data["stage", ])
 
 #Filter out rows where the sum of values is not equal to zero
@@ -289,7 +290,7 @@ Here we want to visualize difference from RR no response and response patients
 ```{r}
 #Read data from the "20260128stagepca.csv" file, using the first column as row names
 
-data <- read.csv("20260128stagepca.csv", row.names=1)
+data <- read.csv("data/input/20260128stagepca.csv", row.names=1)
 stage_vec <- as.numeric(data["stage", ])
 
 #Filter out rows where the sum of values is not equal to zero
@@ -347,9 +348,6 @@ scriptsLocations <- paste(getwd(), "/scripts/", sep="")
 importAllHandmadeFunctions(scriptsLocations)
 
 ```{r}
-#Set working directory
-
-setwd(dir="D:/mine/2022NL/RR/deskCBR")
 
 #Load readr library
 
@@ -508,7 +506,7 @@ return(p)
 
 #"97genesCBRYN.csv" file can be changed to "20251218selectedcbr+5clinic" or "20251212wholeCBR+5clinic" or "1211clinicmerge"
 
-data <- read.csv("20251218selectedcbr+5clinic.csv", row.names=1)
+data <- read.csv("data/input/20251218selectedcbr+5clinic.csv", row.names=1)
 
 
 #Define conditions and group labels
@@ -649,9 +647,6 @@ createROCCurve(glmProfileIndividual, condition_test, data_test)
 LR-RFEs were used to analyses data of gene and gene with clinical characters, to see how many variables we can select with optimal choose for RR
 
 ```{r}
-#Set working directory
-
-setwd(dir="D:/mine/2022NL/RR/deskR")
 
 #Load readr library
 
@@ -803,13 +798,13 @@ return(p)
 
 #Read data from "20251218selectedRR+5clinic.csv" file with row names
 
-data <- read.csv("20251218selectedRR+5clinic.csv", row.names=1)
+data <- read.csv("data/input/20251218selectedRR+5clinic.csv", row.names=1)
 
 #"20251218selectedRR+5clinic.csv" can be changed to "103RRYN.csv","20251212wholeRR+5clinic","20251212mergeRR"
 
 #Import custom functions
 
-source("D:/mine/2022NL/RR/deskCBR/importAllHandmadeFunctions.R")
+source("D:data/input/importAllHandmadeFunctions.R")
 
 #Define script locations
 
@@ -968,7 +963,7 @@ createROCCurve(glmProfileIndividual, condition_test, data_test)
 levels of the variables selected by the models to predict Response to treatment in EC patients
 ```{r}
 # clinic features: read "5clinicRFE_CBR.rds"
-RFE_CBR <- readRDS("5clinicRFE_CBR.rds")
+RFE_CBR <- readRDS("data/input/5clinicRFE_CBR.rds")
 
 library(ggplot2)
 library(dplyr)
@@ -1030,7 +1025,7 @@ p_table
 
 
 ### 5 clinic+wholeDEGS
-RFE_CBR <- readRDS("5clinic+wholeDEGSRFE_CBR.rds")
+RFE_CBR <- readRDS("data/input/5clinic+wholeDEGSRFE_CBR.rds")
 
 # dotplot
 
@@ -1136,7 +1131,7 @@ p_table <- bind_rows(p_cont, p_cat) %>%
 p_table
 
 #### 97genesCBR
-RFE_CBR <- readRDS("DEGSRFE_CBR.rds")
+RFE_CBR <- readRDS("data/input/DEGSRFE_CBR.rds")
 
 # 1. 
 continuous_vars <- c(
@@ -1216,7 +1211,7 @@ p_table <- plot_df_long %>%
 p_table
 
 ### 5 clinic+selectedDEGS
-RFE_CBR <- readRDS("202512185clinic+selectedDEGSRFE_CBR.rds")
+RFE_CBR <- readRDS("data/input/202512185clinic+selectedDEGSRFE_CBR.rds")
 
 library(dplyr)
 library(tidyr)
@@ -1377,7 +1372,7 @@ ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
 ### 5clinics
 # dotplot
 
-RFE_RR <- readRDS("5clinicRFE_RR.rds")
+RFE_RR <- readRDS("data/input/5clinicRFE_RR.rds")
 
 library(ggplot2)
 library(dplyr)
@@ -1440,7 +1435,7 @@ p_table
 
 #### 20251212wholeRR+5clinic.csv
 
-RFE_RR <- readRDS("wholedegsRR+5clinicRFE_RR.rds")
+RFE_RR <- readRDS("data/input/wholedegsRR+5clinicRFE_RR.rds")
 
 
 library(dplyr)
@@ -1521,7 +1516,7 @@ ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
 
 
 ### 20251218selectedRR+5clinic
-RFE_RR <- readRDS("20251218selecteddegsRR+5clinicRFE_RR.rds")
+RFE_RR <- readRDS("data/input/20251218selecteddegsRR+5clinicRFE_RR.rds")
 
 # dotplot
 
@@ -1606,6 +1601,7 @@ ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
 
 ```
               
+
 
 
 
