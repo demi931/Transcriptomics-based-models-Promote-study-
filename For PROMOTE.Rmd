@@ -143,7 +143,7 @@ write.csv(log2J, file="log2J.csv", row.names=TRUE)
 
 #Read the log-transformed data from the "log2J.csv" file, using the first column as row names
 
-data <- read.csv("log2J.csv", row.names=1)
+data <- read.csv("data/input/log2J.csv", row.names=1)
 
 #Convert the data to a matrix
 
@@ -189,7 +189,7 @@ write.csv(log2J, file="log2JRR.csv", row.names=TRUE)
 
 #Read the log-transformed data from the "log2JRR.csv" file, using the first column as row names
 
-data <- read.csv("log2JRR.csv", row.names=1)
+data <- read.csv("data/input/log2JRR.csv", row.names=1)
 
 #Convert the data to a matrix
 
@@ -1587,6 +1587,7 @@ ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
 
 ```
               
+
 
 
 
