@@ -80,7 +80,6 @@ data2 <- data[rowSums(data) != 0,]
 
 data1 <- read.csv("data/input/PROMOTE2.1.csv", stringsAsFactors = TRUE)
 
-
 #Create a DESeqDataSet object from the count data and colData, designating the formula ~CBR
  
 dds <- DESeqDataSetFromMatrix(countData = round(data2), colData = data1, design = ~CBR)
@@ -1588,6 +1587,7 @@ ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
 
 ```
               
+
 
 
 
