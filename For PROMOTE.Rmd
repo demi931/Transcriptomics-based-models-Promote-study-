@@ -142,33 +142,44 @@ write.csv(log2J, file="log2J.csv", row.names=TRUE)
 
 #Read the log-transformed data from the "log2J.csv" file, using the first column as row names
 
-data <- read.csv("data/input/log2J.csv", row.names=1)
+expr_with_group <- read.csv(
+  "log2J.csv",
+  row.names = 1,
+  check.names = FALSE
+)
 
-#Convert the data to a matrix
+# Extract group information (sample-level annotation)
+group_vec <- as.factor(as.character(unlist(expr_with_group["group", ])))
 
-data1 <- data.matrix(data)
+# Remove group row to obtain expression matrix only
+expr_matrix <- expr_with_group[rownames(expr_with_group) != "group", ]
 
-#Create a heatmap using pheatmap with row scaling
+# Convert to numeric matrix
+expr_matrix <- data.matrix(expr_matrix)
 
-pheatmap(data1, scale = "row")
+# Build column annotation data frame
+annotation_col <- data.frame(
+  Group = group_vec
+)
 
-#Define Groups for annotation
+rownames(annotation_col) <- colnames(expr_matrix)
 
-Groups <- c(rep("cbrno", 25), rep("cbryes", 36))
+# Load required library
+library(pheatmap)
 
-annotation_c <- data.frame(Groups)
+# Draw heatmap (same package, same colors, grouping included)
+heatmap_res <- pheatmap(
+  expr_matrix,
+  scale = "row",
+  show_rownames = FALSE,
+  cluster_col = FALSE,
+  color = colorRampPalette(c("navy", "white", "firebrick3"))(100),
+  annotation_col = annotation_col
+)
 
-#Set row names for the annotation data frame
+# Output heatmap object
+heatmap_res
 
-row.names(annotation_c) <- colnames(data1)
-
-#Create a heatmap with row scaling, without row names, and with color grouping
-
-B <- pheatmap(data1, scale = "row", show_rownames = FALSE, cluster_col = FALSE,
-              col = colorRampPalette(c("navy", "white", "firebrick3"))(100),
-              annotation_col = annotation_c)
-
-B
 ```
 
               
@@ -1583,6 +1594,7 @@ ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
 
 ```
               
+
 
 
 
