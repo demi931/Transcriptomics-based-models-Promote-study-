@@ -317,6 +317,7 @@ ggplot(
 ) +
   geom_point(size = 3) +
   theme_classic()
+
 # RFE for CBR
 LR-RFEs were used to analyses data of gene and gene with clinical characters, to see how many variables we can select with optimal choose for CBR
 ```{r}
@@ -1582,6 +1583,7 @@ ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
 
 ```
               
+
 
 
 
