@@ -185,35 +185,36 @@ log2(data + 1) -> log2J
 
 #Write the log-transformed data to a CSV file
 
-write.csv(log2J, file="log2JRR.csv", row.names=TRUE)
+write.csv(log2J, file="log2JRR(1).csv", row.names=TRUE)
 
 #Read the log-transformed data from the "log2JRR.csv" file, using the first column as row names
 
-data <- read.csv("data/input/log2JRR.csv", row.names=1)
+data <- read.csv("data/input/log2JRR(1).csv", row.names=1)
 
-#Convert the data to a matrix
+# Extract group information (sample annotation)
+group_vec <- as.factor(unlist(data["group", ]))
 
-data1 <- data.matrix(data)
+# Remove group row from expression matrix
+expr_mat <- data[rownames(data) != "group", ]
 
-#Create a heatmap using pheatmap with row scaling
+data1 <- data.matrix(expr_mat)
 
-pheatmap(data1, scale="row")
+# Build annotation (sample-level)
+annotation_c <- data.frame(
+  Group = ifelse(group_vec == "1", "Response", "No response")
+)
 
-#Define Groups for annotation
+rownames(annotation_c) <- colnames(data1)
 
-Groups <- c(rep("rrno", 30), rep("rryes", 31))
-annotation_c <- data.frame(Groups)
-
-#Set row names for the annotation data frame
-
-row.names(annotation_c) <- colnames(data1)
-
-#Create a heatmap with row scaling, without row names, and with color grouping
-
-B <- pheatmap(data1, scale="row", show_rownames=FALSE, cluster_col=FALSE,
-              col=colorRampPalette(c("navy", "white", "firebrick3"))(100),
-              annotation_col=annotation_c)
-B
+# Draw heatmap (same color, same package, grouping included)
+B <- pheatmap(
+  data1,
+  scale = "row",
+  show_rownames = FALSE,
+  cluster_col = FALSE,
+  color = colorRampPalette(c("navy", "white", "firebrick3"))(100),
+  annotation_col = annotation_c
+)
 ```
 
 # PCA plot for CBR
@@ -1587,6 +1588,7 @@ ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
 
 ```
               
+
 
 
 
