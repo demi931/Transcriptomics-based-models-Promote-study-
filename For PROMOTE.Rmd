@@ -38,41 +38,27 @@ if (!file.exists(expr_file)) {
 data <- read.csv(expr_file, row.names = 1, check.names = FALSE)
 data2 <- data[rowSums(data) != 0, ]
 data1 <- t(data2)
-```
 
-# Principal Component Analysis
-Here we need to find if patients collected from different center have difference.
-```{r}
-#Create a data frame with the results of Principal Component Analysis
-pcdat <- prcomp(data1, scale=TRUE)
-
+# PCA (exclude Location column)
+pcdat <- prcomp(
+  data1[, colnames(data1) != "Location"],
+  scale. = TRUE
+)
 summary(pcdat)
 
+# PCA scores
 plotdat <- as.data.frame(pcdat$x[, 1:2])
 
-plotdat$Location <- c(
-  "maastricht", "nijmegen", "groningen", "NKI-amsterdam", "UK", "Eindhoven", "Bergen", "UK",
-  "Eindhoven", "maastricht", "Rotterdam", "utrecht", "Bergen", "arnem", "amsterdam", "NKI-amsterdam",
-  "Rotterdam", "nijmegen", "maastricht", "maastricht", "utrecht", "OSLO", "Eindhoven", "CZ-BRN",
-  "maastricht", "nijmegen", "nijmegen", "nijmegen", "nijmegen", "Eindhoven", "Eindhoven", "groningen",
-  "maastricht", "utrecht", "OSLO", "OSLO", "OSLO", "OSLO", "nijmegen", "Eindhoven", "groningen",
-  "Rotterdam", "nijmegen", "OSLO", "NKI-amsterdam", "NKI-amsterdam", rep("nijmegen", 14)
-)
+# Add Location as a factor (CRUCIAL)
+plotdat$Location <- as.factor(data1[, "Location"])
 
-length(unique(plotdat$Location))
-unique(plotdat$Location)
+library(ggplot2)
+library(ggforce)
 
-plotdat$Location <- paste0(
-  "Location",
-  match(plotdat$Location, unique(plotdat$Location))
-)
-
-
-# Create a scatter plot with ellipses
-ggplot(plotdat, aes(x=PC1, y=PC2, colour=Location)) +
-  geom_point(size=3) +  # Add points to the plot
-  stat_ellipse(level=0.9)  # Add ellipses to the plot
-
+ggplot(plotdat, aes(x = PC1, y = PC2, colour = Location)) +
+  geom_point(size = 3) +
+  stat_ellipse(level = 0.9) +
+  theme_classic()
 ```
   
   
@@ -1601,6 +1587,7 @@ ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
 
 ```
               
+
 
 
 
