@@ -967,73 +967,11 @@ createROCCurve(glmProfileIndividual, condition_test, data_test)
 ```
 
 
-# dotplot (CBR)
+# dotplot (CBR and RR)
 levels of the variables selected by the models to predict Response to treatment in EC patients
+We use "5clinic+wholeDEGS" model as an example. Extract selected features from the chosen logistic model
+
 ```{r}
-# clinic features: read "5clinicRFE_CBR.rds"
-RFE_CBR <- readRDS("data/input/5clinicRFE_CBR.rds")
-
-library(ggplot2)
-library(dplyr)
-library(tidyr)
-
-# Step 1: prepare data
-plot_df <- data %>%
-  as.data.frame() %>%
-  select(ERIHC_bi2, Grade, PRIHC_bi2) %>%
-  mutate(
-    type = df_group$type,
-    group_label = ifelse(type == 0, "No response", "Response")
-  )
-
-# Step 2: long format
-plot_df_long <- plot_df %>%
-  pivot_longer(
-    cols = c(ERIHC_bi2, Grade, PRIHC_bi2),
-    names_to = "variable",
-    values_to = "value"
-  )
-
-
-# Step 3: calculate p-values (Wilcoxon test) with 3 decimal places
-p_values <- plot_df_long %>%
-  group_by(variable) %>%
-  summarise(
-    p_value = chisq.test(table(value, group_label))$p.value,
-    .groups = "drop"
-  ) %>%
-  mutate(
-    label = ifelse(
-      p_value < 0.001,
-      "p < 0.001",
-      paste0("p = ", sprintf("%.3f", p_value))
-    )
-  )
-
-
-
-# Step 4: plot (dotplot) with p-values
-
-ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
-  geom_jitter(width = 0.15, size = 2, alpha = 0.7) +
-  facet_wrap(~ variable, scales = "free_y") +
-  labs(
-    x = "Group",
-    y = "Value",
-    color = "Group",
-    title = "Distribution of key predictors by response status"
-  ) +
-  theme_minimal(base_size = 14)
-
-p_table <- p_values %>%
-  select(variable, p_value, label) %>%
-  arrange(variable)
-
-p_table
-
-
-### 5 clinic+wholeDEGS
-RFE_CBR <- readRDS("data/input/5clinic+wholeDEGSRFE_CBR.rds")
 
 # dotplot
 
@@ -1041,16 +979,16 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 
-# Continuous variables
+# Continuous variables (selected features can be changed by different models)
 continuous_vars <- c(
   "ENSG00000127554","Age","ENSG00000134216",
   "ENSG00000198881","ENSG00000285854"
 )
 
-# Categorical variables
+# Categorical variables (selected features can be changed by different models)
 categorical_vars <- c("FIGOstage","ERIHC_bi2","PRIHC_bi2","Grade")
 
-# Step 1: clean data
+# Prepare data for plotting
 plot_df <- data %>%
   as.data.frame() %>%
   select(all_of(c(continuous_vars, categorical_vars))) %>%
@@ -1059,7 +997,6 @@ plot_df <- data %>%
     group_label = ifelse(type == 0, "No response", "Response")
   )
 
-# Step 2: long format
 plot_df_long <- plot_df %>%
   pivot_longer(
     cols = all_of(c(continuous_vars, categorical_vars)),
@@ -1067,15 +1004,8 @@ plot_df_long <- plot_df %>%
     values_to = "value"
   )
 
-# Step 3: compute overall mean for continuous variables
-mean_df <- plot_df_long %>%
-  filter(variable %in% continuous_vars) %>%
-  mutate(value = as.numeric(value)) %>%
-  group_by(variable, group_label) %>%
-  summarise(mean_val = mean(value, na.rm = TRUE), .groups = "drop")
 
-
-# Step 4: continuous-variable p-values (Wilcoxon)
+# continuous-variable p-values (Wilcoxon)
 p_df <- plot_df_long %>%
   filter(variable %in% continuous_vars) %>%
   mutate(value = as.numeric(value)) %>%
@@ -1086,11 +1016,11 @@ p_df <- plot_df_long %>%
     .groups = "drop"
   )
 
-# Step 5: merge p-values back for plotting
+# merge p-values back for plotting
 plot_df_long <- plot_df_long %>%
   left_join(p_df %>% select(variable, p_label), by = "variable")
 
-# Step 6: plot
+# plot
 ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
   geom_jitter(width = 0.15, size = 2, alpha = 0.7) +
   facet_wrap(~ variable, scales = "free_y") +
@@ -1101,514 +1031,10 @@ ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
     title = "Distribution of Predictors by Response Status"
   ) +
   theme_minimal(base_size = 14)
-
-
-
-p_cont <- plot_df_long %>%
-  filter(variable %in% continuous_vars) %>%
-  mutate(value = as.numeric(value)) %>%
-  group_by(variable) %>%
-  summarise(
-    p_value = wilcox.test(value ~ group_label)$p.value,
-    .groups = "drop"
-  )
-
-p_cat <- plot_df_long %>%
-  filter(variable %in% categorical_vars) %>%
-  group_by(variable) %>%
-  summarise(
-    p_value = chisq.test(table(value, group_label))$p.value,
-    .groups = "drop"
-  )
-
-p_table <- bind_rows(p_cont, p_cat) %>%
-  mutate(
-    `P value` = ifelse(
-      p_value < 0.001,
-      "P < 0.001",
-      sprintf("P = %.3f", p_value)
-    )
-  ) %>%
-  select(
-    Variable = variable,
-    `P value`
-  ) %>%
-  arrange(Variable)
-
-
-p_table
-
-#### 97genesCBR
-RFE_CBR <- readRDS("data/input/DEGSRFE_CBR.rds")
-
-# 1. 
-continuous_vars <- c(
-  "ENSG00000236095","ENSG00000225647","ENSG00000208892",
-  "ENSG00000259277","ENSG00000229953","ENSG00000198881",
-  "ENSG00000269930","ENSG00000285854","ENSG00000249784"
-)
-
-#2. 
-plot_df <- data %>%
-  as.data.frame() %>%
-  select(all_of(c(continuous_vars))) %>%
-  mutate(
-    type = df_group$type,
-    group_label = ifelse(type == 0, "No response", "Response")
-  )
-
-#3. 
-plot_df_long <- plot_df %>%
-  pivot_longer(
-    cols = all_of(c(continuous_vars)),
-    names_to = "variable",
-    values_to = "value"
-  )
-
-# 4.
-mean_df <- plot_df_long %>%
-  filter(variable %in% continuous_vars) %>%
-  mutate(value = as.numeric(value)) %>%
-  group_by(variable) %>%
-  summarise(mean_val = mean(value, na.rm = TRUE), .groups = "drop")
-
-# 5. 
-p_df <- plot_df_long %>%
-  filter(variable %in% continuous_vars) %>%
-  mutate(value = as.numeric(value)) %>%
-  group_by(variable) %>%
-  summarise(
-    p = wilcox.test(value ~ group_label)$p.value,
-    p_label = ifelse(p < 0.001, "P < 0.001", sprintf("P = %.3f", p)),
-    .groups = "drop"
-  )
-
-#6. 
-plot_df_long <- plot_df_long %>%
-  left_join(p_df %>% select(variable, p_label), by = "variable")
-
-#7. 
-ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
-  geom_jitter(width = 0.15, size = 2, alpha = 0.7) +
-  facet_wrap(~ variable, scales = "free_y") +
-  labs(
-    x = "Group",
-    y = "Value",
-    color = "Group",
-    title = "Distribution of Key Predictors by Response Status"
-  ) +
-  theme_minimal(base_size = 14)
-
-
-
-p_table <- plot_df_long %>%
-  group_by(variable) %>%
-  summarise(
-    p_value = wilcox.test(as.numeric(value) ~ group_label)$p.value,
-    .groups = "drop"
-  ) %>%
-  mutate(
-    `P value` = ifelse(p_value < 0.001, "P < 0.001", sprintf("P = %.3f", p_value))
-  ) %>%
-  select(
-    Variable = variable,
-    `P value`
-  ) %>%
-  arrange(Variable)
-
-p_table
-
-### 5 clinic+selectedDEGS
-RFE_CBR <- readRDS("data/input/202512185clinic+selectedDEGSRFE_CBR.rds")
-
-library(dplyr)
-library(tidyr)
-library(ggplot2)
-
-
-continuous_vars <- c(
-  "ENSG00000177992", "ENSG00000285854",
-  "ENSG00000198881"
-)
-
-categorical_vars <- c(
-  "FIGOstage", "ERIHC_bi2", "PRIHC_bi2", "Grade"
-)
-
-
-plot_df <- data %>%
-  as.data.frame() %>%
-  select(all_of(c(continuous_vars, categorical_vars))) %>%
-  mutate(
-    type = df_group$type,
-    group_label = ifelse(type == 0, "No response", "Response")
-  )
-
-
-plot_df_long <- plot_df %>%
-  pivot_longer(
-    cols = all_of(c(continuous_vars, categorical_vars)),
-    names_to = "variable",
-    values_to = "value"
-  )
-
-
-p_cont <- plot_df_long %>%
-  filter(variable %in% continuous_vars) %>%
-  group_by(variable) %>%
-  summarise(
-    p_value = wilcox.test(as.numeric(value) ~ group_label)$p.value,
-    .groups = "drop"
-  )
-
-
-p_cat <- plot_df_long %>%
-  filter(variable %in% categorical_vars) %>%
-  group_by(variable) %>%
-  summarise(
-    p_value = chisq.test(table(value, group_label))$p.value,
-    .groups = "drop"
-  )
-
-
-p_table <- bind_rows(p_cont, p_cat) %>%
-  mutate(
-    `P value` = ifelse(p_value < 0.001, "P < 0.001", sprintf("P = %.3f", p_value))
-  ) %>%
-  select(
-    Variable = variable,
-    `P value`
-  ) %>%
-  arrange(Variable)
-
-p_table
-
-
-ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
-  geom_jitter(width = 0.15, size = 2, alpha = 0.7) +
-  facet_wrap(~ variable, scales = "free_y") +
-  labs(
-    x = "Group",
-    y = "Value",
-    color = "Group",
-    title = "Distribution of Predictors by Response Status"
-  ) +
-  theme_minimal(base_size = 14)
-
-
-summary_cont <- plot_df_long %>%
-  filter(variable %in% continuous_vars) %>%
-  mutate(value = as.numeric(value)) %>%
-  group_by(variable, group_label) %>%
-  summarise(
-    mean   = mean(value, na.rm = TRUE),
-    median = median(value, na.rm = TRUE),
-    Q1     = quantile(value, 0.25, na.rm = TRUE),
-    Q3     = quantile(value, 0.75, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-summary_cont
-
-```
-
-# dotplot (RR)
-levels of the variables selected by the models to predict Response to treatment in EC patients
-```{r}
-### 103RR
-RFE_RR <- readRDS("wholeDEGSRFE_RR.rds")
-
-
-library(dplyr)
-library(tidyr)
-library(ggplot2)
-
-
-continuous_vars <- c("ENSG00000273771","ENSG00000235795","ENSG00000286329",
-  "ENSG00000243546","ENSG00000231749","ENSG00000205704","ENSG00000274767"
-)
-
-
-plot_df <- data %>%
-  as.data.frame() %>%
-  select(all_of(continuous_vars)) %>%
-  mutate(
-    type = df_group$type,
-    group_label = ifelse(type == 0, "No response", "Response")
-  )
-
-
-plot_df_long <- plot_df %>%
-  pivot_longer(
-    cols = all_of(continuous_vars),
-    names_to = "variable",
-    values_to = "value"
-  )
-
-
-p_table <- plot_df_long %>%
-  group_by(variable) %>%
-  summarise(
-    p_value = wilcox.test(as.numeric(value) ~ group_label)$p.value,
-    .groups = "drop"
-  ) %>%
-  mutate(
-    `P value` = ifelse(p_value < 0.001, "P < 0.001", sprintf("P = %.3f", p_value))
-  ) %>%
-  select(
-    Variable = variable,
-    `P value`
-  ) %>%
-  arrange(Variable)
-
-p_table
-
-
-ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
-  geom_jitter(width = 0.15, size = 2, alpha = 0.7) +
-  facet_wrap(~ variable, scales = "free_y") +
-  labs(
-    x = "Group",
-    y = "Value",
-    color = "Group",
-    title = "Distribution of Continuous Predictors by Response Status"
-  ) +
-  theme_minimal(base_size = 14)
-
-
-
-### 5clinics
-# dotplot
-
-RFE_RR <- readRDS("data/input/5clinicRFE_RR.rds")
-
-library(ggplot2)
-library(dplyr)
-library(tidyr)
-
-# Step 1: prepare data
-plot_df <- data %>%
-  as.data.frame() %>%
-  select(ERIHC_bi2, Grade, PRIHC_bi2) %>%
-  mutate(
-    type = df_group$type,
-    group_label = ifelse(type == 0, "No response", "Response")
-  )
-
-# Step 2: long format
-plot_df_long <- plot_df %>%
-  pivot_longer(
-    cols = c(ERIHC_bi2, Grade, PRIHC_bi2),
-    names_to = "variable",
-    values_to = "value"
-  )
-
-
-# Step 3: calculate p-values (Wilcoxon test) with 3 decimal places
-p_values <- plot_df_long %>%
-  group_by(variable) %>%
-  summarise(
-    p_value = chisq.test(table(value, group_label))$p.value,
-    .groups = "drop"
-  ) %>%
-  mutate(
-    label = ifelse(
-      p_value < 0.001,
-      "p < 0.001",
-      paste0("p = ", sprintf("%.3f", p_value))
-    )
-  )
-
-
-
-# Step 4: plot (dotplot) with p-values
-
-ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
-  geom_jitter(width = 0.15, size = 2, alpha = 0.7) +
-  facet_wrap(~ variable, scales = "free_y") +
-  labs(
-    x = "Group",
-    y = "Value",
-    color = "Group",
-    title = "Distribution of key predictors by response status"
-  ) +
-  theme_minimal(base_size = 14)
-
-p_table <- p_values %>%
-  select(variable, p_value, label) %>%
-  arrange(variable)
-
-p_table
-
-
-#### 20251212wholeRR+5clinic.csv
-
-RFE_RR <- readRDS("data/input/wholedegsRR+5clinicRFE_RR.rds")
-
-
-library(dplyr)
-library(tidyr)
-library(ggplot2)
-
-
-continuous_vars <- c(
-  "ENSG00000271810", "ENSG00000205056",
-  "ENSG00000277268", "ENSG00000274767", "ENSG00000205704"
-)
-
-categorical_vars <- c(
-  "FIGOstage", "Grade", "ERIHC_bi2", "PRIHC_bi2"
-)
-
-
-plot_df <- data %>%
-  as.data.frame() %>%
-  select(all_of(c(continuous_vars, categorical_vars))) %>%
-  mutate(
-    type = df_group$type,
-    group_label = ifelse(type == 0, "No response", "Response")
-  )
-
-
-plot_df_long <- plot_df %>%
-  pivot_longer(
-    cols = all_of(c(continuous_vars, categorical_vars)),
-    names_to = "variable",
-    values_to = "value"
-  )
-
-
-p_cont <- plot_df_long %>%
-  filter(variable %in% continuous_vars) %>%
-  group_by(variable) %>%
-  summarise(
-    p_value = wilcox.test(as.numeric(value) ~ group_label)$p.value,
-    .groups = "drop"
-  )
-
-
-p_cat <- plot_df_long %>%
-  filter(variable %in% categorical_vars) %>%
-  group_by(variable) %>%
-  summarise(
-    p_value = chisq.test(table(value, group_label))$p.value,
-    .groups = "drop"
-  )
-
-
-p_table <- bind_rows(p_cont, p_cat) %>%
-  mutate(
-    `P value` = ifelse(p_value < 0.001, "P < 0.001", sprintf("P = %.3f", p_value))
-  ) %>%
-  select(
-    Variable = variable,
-    `P value`
-  ) %>%
-  arrange(Variable)
-
-
-p_table
-
-
-ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
-  geom_jitter(width = 0.15, size = 2, alpha = 0.7) +
-  facet_wrap(~ variable, scales = "free_y") +
-  labs(
-    x = "Group",
-    y = "Value",
-    color = "Group",
-    title = "Distribution of Predictors by Response Status"
-  ) +
-  theme_minimal(base_size = 14)
-
-
-
-### 20251218selectedRR+5clinic
-RFE_RR <- readRDS("data/input/20251218selecteddegsRR+5clinicRFE_RR.rds")
-
-# dotplot
-
-library(dplyr)
-library(tidyr)
-library(ggplot2)
-
-
-continuous_vars <- c(
-  "ENSG00000085465", "ENSG00000141858", "ENSG00000208892",
-  "ENSG00000127554", "ENSG00000163481", "ENSG00000130948",
-  "Age", "ENSG00000207523"
-)
-
-categorical_vars <- c(
-  "FIGOstage", "ERIHC_bi2", "Grade", "PRIHC_bi2"
-)
-
-
-plot_df <- data %>%
-  as.data.frame() %>%
-  select(all_of(c(continuous_vars, categorical_vars))) %>%
-  mutate(
-    type = df_group$type,
-    group_label = ifelse(type == 0, "No response", "Response")
-  )
-
-
-plot_df_long <- plot_df %>%
-  pivot_longer(
-    cols = all_of(c(continuous_vars, categorical_vars)),
-    names_to = "variable",
-    values_to = "value"
-  )
-
-
-p_cont <- plot_df_long %>%
-  filter(variable %in% continuous_vars) %>%
-  group_by(variable) %>%
-  summarise(
-    p_value = wilcox.test(as.numeric(value) ~ group_label)$p.value,
-    .groups = "drop"
-  )
-
-
-p_cat <- plot_df_long %>%
-  filter(variable %in% categorical_vars) %>%
-  group_by(variable) %>%
-  summarise(
-    p_value = chisq.test(table(value, group_label))$p.value,
-    .groups = "drop"
-  )
-
-
-p_table <- bind_rows(p_cont, p_cat) %>%
-  mutate(
-    `P value` = ifelse(p_value < 0.001, "P < 0.001", sprintf("P = %.3f", p_value))
-  ) %>%
-  select(
-    Variable = variable,
-    `P value`
-  ) %>%
-  arrange(Variable)
-
-
-p_table
-
-
-
-ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
-  geom_jitter(width = 0.15, size = 2, alpha = 0.7) +
-  facet_wrap(~ variable, scales = "free_y") +
-  labs(
-    x = "Group",
-    y = "Value",
-    color = "Group",
-    title = "Distribution of Predictors by Response Status"
-  ) +
-  theme_minimal(base_size = 14)
-
-
 
 ```
               
+
 
 
 
