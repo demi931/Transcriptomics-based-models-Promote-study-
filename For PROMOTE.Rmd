@@ -969,7 +969,8 @@ createROCCurve(glmProfileIndividual, condition_test, data_test)
 
 # dotplot (CBR and RR)
 levels of the variables selected by the models to predict Response to treatment in EC patients
-We use "5clinic+wholeDEGS" model as an example. Extract selected features from the chosen logistic model
+We use "5clinic+wholeDEGS" model as an example.
+Extract selected features from the chosen logistic model (results of "glmProfileIndividual$coefficients")
 
 ```{r}
 
@@ -979,13 +980,13 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 
-# Continuous variables (selected features can be changed by different models)
+# Continuous variables (selected features according to the model, can be changed by different models)
 continuous_vars <- c(
   "ENSG00000127554","Age","ENSG00000134216",
   "ENSG00000198881","ENSG00000285854"
 )
 
-# Categorical variables (selected features can be changed by different models)
+# Categorical variables (selected features according to the model, can be changed by different models)
 categorical_vars <- c("FIGOstage","ERIHC_bi2","PRIHC_bi2","Grade")
 
 # Prepare data for plotting
@@ -1005,7 +1006,7 @@ plot_df_long <- plot_df %>%
   )
 
 
-# continuous-variable p-values (Wilcoxon)
+# continuous-variable p-values (Wilcoxon) （not neccessary）
 p_df <- plot_df_long %>%
   filter(variable %in% continuous_vars) %>%
   mutate(value = as.numeric(value)) %>%
@@ -1016,7 +1017,7 @@ p_df <- plot_df_long %>%
     .groups = "drop"
   )
 
-# merge p-values back for plotting
+# merge p-values back for plotting  （not neccessary）
 plot_df_long <- plot_df_long %>%
   left_join(p_df %>% select(variable, p_label), by = "variable")
 
@@ -1034,6 +1035,7 @@ ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
 
 ```
               
+
 
 
 
