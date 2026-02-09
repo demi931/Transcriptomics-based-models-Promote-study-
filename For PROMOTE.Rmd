@@ -130,20 +130,15 @@ write.csv(deseq_results_df, file = "diff_expr_result.csv", quote = FALSE)
 We want to find if there is difference from CBR no response and response patients and visualize
 
 ```{r}
-
 #mean value for each gene, then value of each sample divide mean value get "foldchangeJ" file
+# Read fold-change data
+foldchange_data <- read.csv("data/input/foldchangeJ.csv", row.names = 1)
 
-#Read data from the "foldchangeJ.csv" file, using the first column as row names
+# Apply log2 transformation
+log2_foldchange <- log2(foldchange_data + 1)
 
-data <- read.csv("data/input/foldchangeJ.csv", row.names=1)
-
-#Apply log2 transformation to the data and store it in log2J
-
-log2(data + 1) -> log2J   
-
-#Write the log-transformed data to a CSV file
-
-write.csv(log2J, file="log2J.csv", row.names=TRUE)
+# Save log-transformed data
+write.csv(log2_foldchange, file = "log2J.csv", row.names = TRUE)
 
 #Read the log-transformed data from the "log2J.csv" file, using the first column as row names
 
@@ -195,44 +190,42 @@ heatmap_res
 # Visualize difference genes by Heatmap for RR
 We want to find if there is difference from RR no response and response patients and visualize
 ```{r}
-#Read data from the "RRfoldchangeJ.csv" file, using the first column as row names
-data <- read.csv("data/input/RRfoldchangeJ.csv", row.names=1)
+# Read fold-change data for RR
+rr_foldchange_data <- read.csv("data/input/RRfoldchangeJ.csv", row.names = 1)
 
-#Apply log2 transformation to the data and store it in log2J
+# Apply log2 transformation
+log2_rr_foldchange <- log2(rr_foldchange_data + 1)
 
-log2(data + 1) -> log2J
+# Save log-transformed data
+write.csv(log2_rr_foldchange, file = "log2JRR(1).csv", row.names = TRUE)
 
-#Write the log-transformed data to a CSV file
 
-write.csv(log2J, file="log2JRR(1).csv", row.names=TRUE)
+#Read the log-transformed data from the "log2JRR(1).csv" file, using the first column as row names
 
-#Read the log-transformed data from the "log2JRR.csv" file, using the first column as row names
+expr_rr_log2 <- read.csv("data/input/log2JRR(1).csv", row.names = 1)
 
-data <- read.csv("data/input/log2JRR(1).csv", row.names=1)
+# Extract sample-level group information
+rr_group_vector <- as.factor(unlist(expr_rr_log2["group", ]))
 
-# Extract group information (sample annotation)
-group_vec <- as.factor(unlist(data["group", ]))
+# Remove 'group' row to get expression matrix only
+expr_rr_matrix <- expr_rr_log2[rownames(expr_rr_log2) != "group", ]
 
-# Remove group row from expression matrix
-expr_mat <- data[rownames(data) != "group", ]
+expr_rr_numeric <- data.matrix(expr_rr_matrix)
 
-data1 <- data.matrix(expr_mat)
-
-# Build annotation (sample-level)
-annotation_c <- data.frame(
-  Group = ifelse(group_vec == "1", "Response", "No response")
+# Build column annotation data frame
+annotation_rr <- data.frame(
+  Group = ifelse(rr_group_vector == "1", "Response", "No response")
 )
+rownames(annotation_rr) <- colnames(expr_rr_numeric)
 
-rownames(annotation_c) <- colnames(data1)
-
-# Draw heatmap (same color, same package, grouping included)
-B <- pheatmap(
-  data1,
+# Draw heatmap
+heatmap_rr <- pheatmap(
+  expr_rr_numeric,
   scale = "row",
   show_rownames = FALSE,
   cluster_col = FALSE,
   color = colorRampPalette(c("navy", "white", "firebrick3"))(100),
-  annotation_col = annotation_c
+  annotation_col = annotation_rr
 )
 ```
 
@@ -1038,6 +1031,7 @@ ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
 
 ```
               
+
 
 
 
