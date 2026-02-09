@@ -61,7 +61,7 @@ ggplot(pca_scores, aes(PC1, PC2, colour = Response, shape = Stage)) +
 ```
 This allows visual inspection of the separation between responders and non-responders.
 
-2. **Differential Expression Analysis (DESeq2)**
+2.**Differential Expression Analysis (DESeq2)**
 
 DESeq2 is applied to identify genes differentially expressed between response groups.
 ```dds <- DESeqDataSetFromMatrix(
@@ -75,7 +75,7 @@ res <- results(dds)
 ```
 Genes are classified as UP, DOWN, or NOT CHANGE based on log2 fold change and adjusted p-value.
 
-3. ** Heatmap Visualization**
+3.** Heatmap Visualization**
 
 Differentially expressed genes are visualized using heatmaps to compare response groups:
 ```
@@ -88,7 +88,7 @@ pheatmap(
 ```
 This is performed separately for clinical benefit and response.
 
-4. **Feature Selection with Logistic Regression + RFE, and Model Evaluation**
+4.**Feature Selection with Logistic Regression + RFE, and Model Evaluation**
 
 Recursive Feature Elimination (RFE) is used to identify optimal gene and clinical feature subsets.
 ```
