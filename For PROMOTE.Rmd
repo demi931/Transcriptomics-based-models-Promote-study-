@@ -81,53 +81,48 @@ expr_file <- "data/input/PROMOTE2.csv"
 if (!file.exists(expr_file)) {
   stop("input file not found: ", expr_file)
 }
-data <- read.csv(expr_file, row.names = 1, check.names = FALSE)
-data2 <- data[rowSums(data) != 0,]
 
+# Read raw count data
+count_raw <- read.csv(expr_file, row.names = 1, check.names = FALSE)
 
+# Filter out genes with zero counts across all samples
+count_filtered <- count_raw[rowSums(count_raw) != 0, ]
 
-#Read the CSV file "PROMOTE2.1.csv" into a data frame, treating strings as factors
+# Read sample metadata
+sample_metadata <- read.csv("data/input/PROMOTE2.1.csv", stringsAsFactors = TRUE)
 
-data1 <- read.csv("data/input/PROMOTE2.1.csv", stringsAsFactors = TRUE)
+# Create DESeqDataSet object
+dds <- DESeqDataSetFromMatrix(
+  countData = round(count_filtered),
+  colData = sample_metadata,
+  design = ~CBR
+)
 
-#Create a DESeqDataSet object from the count data and colData, designating the formula ~CBR
- 
-dds <- DESeqDataSetFromMatrix(countData = round(data2), colData = data1, design = ~CBR)
-
-#Run DESeq on the DESeqDataSet
- 
+# Run DESeq normalization and differential expression analysis
 dds <- DESeq(dds)
 
-#Extract results from DESeq analysis
- 
-res <- results(dds)
+# Extract DESeq results
+deseq_results <- results(dds)
 
-#Convert the DESeq results object to a data frame
- 
-res_1 <- data.frame(res)
+# Convert results to a data frame
+deseq_results_df <- data.frame(deseq_results)
 
-#Display the first few rows of the results data frame
- 
-head(res_1)
+# Display first few rows
+head(deseq_results_df)
 
-#Mutate a new column 'group' based on log2FoldChange and adjusted p-value
-
-res_1 %>%
+# Add a 'group' column based on log2FoldChange and adjusted p-value
+deseq_results_df <- deseq_results_df %>%
   mutate(group = case_when(
     log2FoldChange >= 2 & padj <= 0.05 ~ "UP",
     log2FoldChange <= -2 & padj <= 0.05 ~ "DOWN",
     TRUE ~ "NOT_CHANGE"
-  )) -> res_2
+  ))
 
-#Display the table of counts for each group in the 'group' column
+# Show counts for each group
+table(deseq_results_df$group)
 
-table(res_2$group)
-
-#Write the mutated data frame to a CSV file
-
-write.csv(res_2, file = "diff_expr_result.csv", quote = FALSE)
-
-
+# Write results to CSV
+write.csv(deseq_results_df, file = "diff_expr_result.csv", quote = FALSE)
 ```
 
 
@@ -1043,6 +1038,7 @@ ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
 
 ```
               
+
 
 
 
