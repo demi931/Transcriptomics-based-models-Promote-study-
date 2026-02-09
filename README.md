@@ -73,6 +73,7 @@ dds <- DESeq(dds)
 res <- results(dds)
 ```
 Genes are classified as UP, DOWN, or NOT CHANGE based on log2 fold change and adjusted p-value.
+
 3. ** Heatmap Visualization**
 Differentially expressed genes are visualized using heatmaps to compare response groups:
 ```
@@ -84,6 +85,7 @@ pheatmap(
 )
 ```
 This is performed separately for clinical benefit and response.
+
 4. **Feature Selection with Logistic Regression + RFE, and Model Evaluation**
 Recursive Feature Elimination (RFE) is used to identify optimal gene and clinical feature subsets.
 ```
