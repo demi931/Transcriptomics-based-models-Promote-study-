@@ -37,27 +37,35 @@ expr_file <- "data/input/PROMOTE2samplechangeRR60samples(1).csv"
 if (!file.exists(expr_file)) {
   stop("input file not found: ", expr_file)
 }
-data <- read.csv(expr_file, row.names = 1, check.names = FALSE)
-data2 <- data[rowSums(data) != 0, ]
-data1 <- t(data2)
+
+# Read expression data
+expr_raw <- read.csv(expr_file, row.names = 1, check.names = FALSE)
+
+# Filter out genes with zero counts across all samples
+expr_filtered <- expr_raw[rowSums(expr_raw) != 0, ]
+
+# Transpose 
+expr_matrix <- t(expr_filtered)
 
 # PCA (exclude Location column)
-pcdat <- prcomp(
-  data1[, colnames(data1) != "Location"],
+pca_result <- prcomp(
+  expr_matrix[, colnames(expr_matrix) != "Location"],
   scale. = TRUE
 )
-summary(pcdat)
+
+# Summary of PCA
+summary(pca_result)
 
 # PCA scores
-plotdat <- as.data.frame(pcdat$x[, 1:2])
+pca_scores <- as.data.frame(pca_result$x[, 1:2])
 
-# Add Location as a factor (CRUCIAL)
-plotdat$Location <- as.factor(data1[, "Location"])
+# Add Location as a factor
+pca_scores$Location <- as.factor(expr_matrix[, "Location"])
 
 library(ggplot2)
 library(ggforce)
 
-ggplot(plotdat, aes(x = PC1, y = PC2, colour = Location)) +
+ggplot(pca_scores, aes(x = PC1, y = PC2, colour = Location)) +
   geom_point(size = 3) +
   stat_ellipse(level = 0.9) +
   theme_classic()
@@ -1035,6 +1043,7 @@ ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
 
 ```
               
+
 
 
 
