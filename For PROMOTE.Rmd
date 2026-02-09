@@ -509,12 +509,10 @@ return(p)
 
 #"97genesCBRYN.csv" file can be changed to "20251218selectedcbr+5clinic" or "20251212wholeCBR+5clinic" or "1211clinicmerge"
 
-data <- read.csv("data/input/20251218selectedcbr+5clinic.csv", row.names=1)
+expr_raw <- read.csv("data/input/20251218selectedcbr+5clinic.csv",row.names = 1)
 
-
-#Define conditions and group labels
-
-group <- as.numeric(data[1, ])
+# Define conditions and group labels
+group <- as.numeric(expr_raw[1, ])
 
 condition <- ifelse(group == 1, "CBR_responders", "CBR_non-responders")
 
@@ -523,21 +521,19 @@ condition <- ifelse(group == 1, "CBR_responders", "CBR_non-responders")
 df_group <- data.frame(group)
 
 # Transpose the data
-data<-data[-c(1),]
+expr_raw <- expr_raw[-c(1), ]
 
-data <- as.data.frame(t(data))
+expr_matrix <- as.data.frame(t(expr_raw))
 
-#Set row names for the group data frame
+# Set row names for the group data frame
+rownames(df_group) <- rownames(expr_matrix)
 
-rownames(df_group) <- rownames(data)
+# Combine conditions and data for ordering
+y_condition <- rbind(t(df_group), as.data.frame(t(expr_matrix)))
 
-#Combine conditions and data for ordering
+y_ord_condition <- y_condition[, order(as.matrix(y_condition[1, ]))]
 
-y_condition <- rbind(t(df_group), as.data.frame(t(data)))
-
-y_ord_condition <- y_condition[, order(as.matrix(y_condition[1,]))]
-
-y_ord <- y_ord_condition[-c(1),]
+y_ord <- y_ord_condition[-c(1), ]
 
 #Set seed for reproducibility
 
@@ -800,8 +796,7 @@ return(p)
 
 
 #Read data from "20251218selectedRR+5clinic.csv" file with row names
-
-data <- read.csv("data/input/20251218selectedRR+5clinic.csv", row.names=1)
+expr_raw <- read.csv("data/input/20251218selectedRR+5clinic.csv",row.names = 1)
 
 #"20251218selectedRR+5clinic.csv" can be changed to "103RRYN.csv","20251212wholeRR+5clinic","20251212mergeRR"
 
@@ -822,28 +817,23 @@ importAllHandmadeFunctions(scriptsLocations)
 library(ggplot2)
 
 #Define conditions and group labels
-
-group <- as.numeric(data[1, ])
+group <- as.numeric(expr_raw[1, ])
 
 condition <- ifelse(group == 1, "RR_responders", "RR_non-responders")
 
-#Create group data frame
-
+# Create group data frame
 df_group <- data.frame(group)
 
-# Transpose the data
-data<-data[-c(1),]
+# Remove group row and transpose expression data
+expr_raw <- expr_raw[-c(1), ]
 
-data <- as.data.frame(t(data))
+expr_matrix <- as.data.frame(t(expr_raw))
 
+# Set row names for the group data frame
+rownames(df_group) <- rownames(expr_matrix)
 
-#Set row names for the group data frame
-
-rownames(df_group) <- rownames(data)
-
-#Combine conditions and data for sorting
-
-y_condition <- rbind(t(df_group), as.data.frame(t(data)))
+# Combine conditions and data for sorting
+y_condition <- rbind(t(df_group), as.data.frame(t(expr_matrix)))
 
 y_ord_condition <- y_condition[, order(as.matrix(y_condition[1,]))]
 
@@ -1030,6 +1020,7 @@ ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
 
 ```
               
+
 
 
 
