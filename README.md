@@ -23,6 +23,7 @@ This R script performs multiple steps of RNA-seq differential gene expression an
 
 ## Installation
 git clone https://github.com/your-username/Transcriptomics-based-models-Promote-study-.git
+
 cd Transcriptomics-based-models-Promote-study-
 
 ## Overview of the Analysis Workflow
