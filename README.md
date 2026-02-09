@@ -133,4 +133,3 @@ ggplot(plot_df_long, aes(x = group_label, y = value)) +
 MIT License
 
 © PROMOTE Study / Maastricht University  
-    rmarkdown::render("FOR PROMOTE.Rmd")
