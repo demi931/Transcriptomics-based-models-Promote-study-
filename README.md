@@ -102,7 +102,7 @@ createROCCurve(glmProfileIndividual, condition_test, data_test)
 Model performance is evaluated using sensitivity, specificity, and overall accuracy.
 Final models are saved as `.rds` objects for reuse and validation.
 
-5. **Visualization of Selected Predictors**
+5.**Visualization of Selected Predictors**
 
 Dot plots are used to visualize distributions of selected predictors between response groups:
 ```
