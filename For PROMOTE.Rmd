@@ -199,7 +199,6 @@ log2_rr_foldchange <- log2(rr_foldchange_data + 1)
 # Save log-transformed data
 write.csv(log2_rr_foldchange, file = "log2JRR(1).csv", row.names = TRUE)
 
-
 #Read the log-transformed data from the "log2JRR(1).csv" file, using the first column as row names
 
 expr_rr_log2 <- read.csv("data/input/log2JRR(1).csv", row.names = 1)
@@ -298,17 +297,16 @@ Here we want to visualize difference from RR no response and response patients
 ```{r}
 #Read data from the "20260128stagepca(1).csv" file, using the first column as row names
 
-data <- read.csv("data/input/20260128stagepca(1).csv", row.names=1)
-
+expr_data <- read.csv("data/input/20260128stagepca(1).csv",row.names = 1)
 # Extract sample annotations
 group_vec <- as.factor(as.character(unlist(data["group", ])))
 stage_vec <- as.factor(as.character(unlist(data["stage", ])))
 
 expr_mat <- data[!rownames(data) %in% c("group", "stage"), ]
 expr_mat <- expr_mat[rowSums(expr_mat) != 0, ]
-data1 <- t(expr_mat)
+expr_mat_t <- t(expr_mat)
 
-pcdat <- prcomp(data1, scale. = TRUE)
+pcdat <- prcomp(expr_mat_t, scale. = TRUE)
 summary(pcdat)
 plotdat <- as.data.frame(pcdat$x[, 1:2])
 
@@ -339,6 +337,7 @@ ggplot(
 ) +
   geom_point(size = 3) +
   theme_classic()
+```
 
 # RFE for CBR
 LR-RFEs were used to analyses data of gene and gene with clinical characters, to see how many variables we can select with optimal choose for CBR
@@ -1031,6 +1030,7 @@ ggplot(plot_df_long, aes(x = group_label, y = value, color = group_label)) +
 
 ```
               
+
 
 
 
